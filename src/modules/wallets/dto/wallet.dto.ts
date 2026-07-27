@@ -23,11 +23,11 @@ export class CreateWalletDto {
   @IsString()
   @MinLength(1)
   @MaxLength(60)
-  name: string;
+  name!: string;
 
   @ApiProperty({ enum: WalletKind, default: WalletKind.Bank })
   @IsEnum(WalletKind)
-  kind: WalletKind;
+  kind!: WalletKind;
 
   @ApiPropertyOptional({ description: 'Integer riel', example: 400000 })
   @IsOptional()

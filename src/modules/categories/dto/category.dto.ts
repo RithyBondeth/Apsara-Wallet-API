@@ -18,17 +18,17 @@ export class CreateCategoryDto {
   @IsString()
   @MinLength(1)
   @MaxLength(40)
-  slug: string;
+  slug!: string;
 
   @ApiProperty({ example: 'Coffee' })
   @IsString()
   @MinLength(1)
   @MaxLength(60)
-  name: string;
+  name!: string;
 
   @ApiProperty({ enum: CategoryType })
   @IsEnum(CategoryType)
-  type: CategoryType;
+  type!: CategoryType;
 
   @ApiPropertyOptional({ example: 'coffee' })
   @IsOptional()

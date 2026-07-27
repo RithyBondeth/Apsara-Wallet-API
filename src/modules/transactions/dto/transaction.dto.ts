@@ -23,28 +23,28 @@ export class CreateTransactionDto {
   @IsString()
   @MinLength(1)
   @MaxLength(120)
-  title: string;
+  title!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  walletId: string;
+  walletId!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  categoryId: string;
+  categoryId!: string;
 
   @ApiProperty({ description: 'Integer riel (KHR)', example: 25000 })
   @IsInt()
   @Min(0)
-  amountKhr: number;
+  amountKhr!: number;
 
   @ApiProperty({ enum: TransactionType })
   @IsEnum(TransactionType)
-  type: TransactionType;
+  type!: TransactionType;
 
   @ApiProperty({ description: 'ISO 8601 timestamp', example: '2026-07-25T10:30:00Z' })
   @IsISO8601()
-  date: string;
+  date!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

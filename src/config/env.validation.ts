@@ -27,23 +27,23 @@ class EnvVars {
 
   @IsString()
   @IsNotEmpty()
-  DATABASE_URL: string;
+  DATABASE_URL!: string;
 
   @IsString()
   @IsNotEmpty()
-  JWT_ACCESS_SECRET: string;
+  JWT_ACCESS_SECRET!: string;
 
   @IsString()
   @IsNotEmpty()
-  JWT_REFRESH_SECRET: string;
+  JWT_REFRESH_SECRET!: string;
 
   @IsString()
   @IsNotEmpty()
-  JWT_ACCESS_TTL: string;
+  JWT_ACCESS_TTL!: string;
 
   @IsString()
   @IsNotEmpty()
-  JWT_REFRESH_TTL: string;
+  JWT_REFRESH_TTL!: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
