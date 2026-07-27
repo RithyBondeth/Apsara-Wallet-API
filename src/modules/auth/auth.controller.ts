@@ -1,6 +1,9 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { IAuthUser } from '../../common/interfaces/jwt-payload';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterDTO } from './dtos/register.dto';
 import { LoginDTO } from './dtos/login.dto';
 import { RefreshTokenDTO } from './dtos/refresh-token.dto';
@@ -35,5 +38,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Revoke a refresh token' })
   logout(@Body() refreshTokenDTO: RefreshTokenDTO) {
     return this.auth.logout(refreshTokenDTO);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Return the signed-in user's profile" })
+  me(@CurrentUser() user: IAuthUser) {
+    return this.auth.profile(user.id);
   }
 }

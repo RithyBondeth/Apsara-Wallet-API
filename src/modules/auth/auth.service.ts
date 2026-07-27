@@ -50,6 +50,23 @@ export class AuthService {
     return this.buildSession(user.id, user.email);
   }
 
+  /** The signed-in user's profile (no secrets). */
+  async profile(userId: string) {
+    const [user] = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        fullName: users.fullName,
+        phone: users.phone,
+      })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return user;
+  }
+
   async login(dto: LoginDTO) {
     const [user] = await this.db
       .select()

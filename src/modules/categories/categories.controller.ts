@@ -19,7 +19,7 @@ import {
   CreateCategoryDto,
   ListCategoriesQuery,
   UpdateCategoryDto,
-} from './dto/category.dto';
+} from './dtos/category.dto';
 
 @ApiTags('categories')
 @ApiBearerAuth()

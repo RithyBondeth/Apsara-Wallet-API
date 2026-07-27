@@ -42,7 +42,10 @@ export class CreateTransactionDto {
   @IsEnum(TransactionType)
   type!: TransactionType;
 
-  @ApiProperty({ description: 'ISO 8601 timestamp', example: '2026-07-25T10:30:00Z' })
+  @ApiProperty({
+    description: 'ISO 8601 timestamp',
+    example: '2026-07-25T10:30:00Z',
+  })
   @IsISO8601()
   date!: string;
 

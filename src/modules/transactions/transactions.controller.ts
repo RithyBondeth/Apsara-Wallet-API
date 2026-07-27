@@ -26,11 +26,14 @@ import {
 @UseGuards(JwtAuthGuard)
 @Controller('transactions')
 export class TransactionsController {
-  constructor(private readonly transactions: TransactionsService) {}
+  constructor(private readonly transactionsService: TransactionsService) {}
 
   @Get()
-  list(@CurrentUser() user: IAuthUser, @Query() query: ListTransactionsQuery) {
-    return this.transactions.list(user.id, query);
+  listAllCategory(
+    @CurrentUser() user: IAuthUser,
+    @Query() query: ListTransactionsQuery,
+  ) {
+    return this.transactionsService.listAllCategory(user.id, query);
   }
 
   @Get(':id')
@@ -38,12 +41,12 @@ export class TransactionsController {
     @CurrentUser() user: IAuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.transactions.findOne(user.id, id);
+    return this.transactionsService.findOne(user.id, id);
   }
 
   @Post()
   create(@CurrentUser() user: IAuthUser, @Body() dto: CreateTransactionDto) {
-    return this.transactions.create(user.id, dto);
+    return this.transactionsService.create(user.id, dto);
   }
 
   @Patch(':id')
@@ -52,7 +55,7 @@ export class TransactionsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTransactionDto,
   ) {
-    return this.transactions.update(user.id, id, dto);
+    return this.transactionsService.update(user.id, id, dto);
   }
 
   @Delete(':id')
@@ -60,6 +63,6 @@ export class TransactionsController {
     @CurrentUser() user: IAuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.transactions.remove(user.id, id);
+    return this.transactionsService.remove(user.id, id);
   }
 }
