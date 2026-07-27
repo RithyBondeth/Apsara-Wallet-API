@@ -1,18 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-
-export const DRIZZLE = Symbol('DRIZZLE');
-
-/** Typed handle injected everywhere: @Inject(DRIZZLE) db: DrizzleDB */
-export type DrizzleDB = NodePgDatabase<typeof schema>;
-
-/** The transaction handle passed to db.transaction(async (tx) => ...). */
-export type DrizzleTx = Parameters<
-  Parameters<DrizzleDB['transaction']>[0]
->[0];
+import { DRIZZLE, DrizzleDB } from './types/drizzle.type';
 
 @Global()
 @Module({

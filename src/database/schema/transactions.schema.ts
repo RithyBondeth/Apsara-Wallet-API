@@ -2,7 +2,7 @@ import { pgTable, uuid, text, bigint, timestamp } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
 import { wallets } from './wallets.schema';
 import { categories } from './categories.schema';
-import { transactionTypeEnum } from './enums';
+import { transactionTypeEnum } from '../enums/transaction-type.enum';
 
 export const transactions = pgTable('transactions', {
   id: uuid().primaryKey().defaultRandom(),

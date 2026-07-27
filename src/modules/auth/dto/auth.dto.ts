@@ -21,7 +21,7 @@ export class RegisterDto {
   @ApiProperty({ example: 'Str0ngPass!', minLength: 8 })
   @IsString()
   @MinLength(8)
-  @MaxLength(72) // bcrypt hard limit
+  @MaxLength(72)
   password!: string;
 
   @ApiProperty({ required: false, example: '+85512345678' })

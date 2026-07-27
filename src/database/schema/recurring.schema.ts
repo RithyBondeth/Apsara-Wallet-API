@@ -2,7 +2,7 @@ import { pgTable, uuid, text, bigint, timestamp } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
 import { wallets } from './wallets.schema';
 import { categories } from './categories.schema';
-import { transactionTypeEnum, recurrenceFrequencyEnum } from './enums';
+import { transactionTypeEnum, recurrenceFrequencyEnum } from '../enums/enums';
 
 export const recurringRules = pgTable('recurring_rules', {
   id: uuid().primaryKey().defaultRandom(),

@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
-import { categoryTypeEnum } from './enums';
+import { categoryTypeEnum } from '../enums/category-type.enum';
 
 /**
  * System categories (is_system = true) have a null userId and are shared by

@@ -9,15 +9,15 @@ import {
   validateSync,
 } from 'class-validator';
 
-enum NodeEnv {
+enum ENodeEnv {
   Development = 'development',
   Production = 'production',
   Test = 'test',
 }
 
 class EnvVars {
-  @IsEnum(NodeEnv)
-  NODE_ENV: NodeEnv = NodeEnv.Development;
+  @IsEnum(ENodeEnv)
+  NODE_ENV: ENodeEnv = ENodeEnv.Development;
 
   @Type(() => Number)
   @IsInt()

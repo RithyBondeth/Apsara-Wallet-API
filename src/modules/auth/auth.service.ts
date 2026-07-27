@@ -11,7 +11,7 @@ import { and, eq, gt } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { refreshTokens, users } from '../../database/schema';
-import type { JwtPayload } from '../../common/types/jwt-payload';
+import type { JwtPayload } from '../../common/interfaces/jwt-payload';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 interface RefreshPayload extends JwtPayload {

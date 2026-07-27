@@ -1,4 +1,4 @@
-export * from './enums';
+export * from '../enums/enums';
 export * from './users.schema';
 export * from './wallets.schema';
 export * from './categories.schema';

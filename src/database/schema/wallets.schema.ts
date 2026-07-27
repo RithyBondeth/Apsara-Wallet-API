@@ -8,7 +8,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
-import { walletKindEnum } from './enums';
+import { walletKindEnum } from '../enums/wallet-kind.enum';
 
 export const wallets = pgTable('wallets', {
   id: uuid().primaryKey().defaultRandom(),
