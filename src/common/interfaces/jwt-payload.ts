@@ -3,6 +3,10 @@ export interface IJwtPayload {
   email: string;
 }
 
+export interface IRefreshPayload extends IJwtPayload {
+  jti: string;
+}
+
 export interface IAuthUser {
   id: string;
   email: string;

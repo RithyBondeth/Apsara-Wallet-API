@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import type { AuthUser } from '../../common/interfaces/jwt-payload';
+import type { IAuthUser } from '../../common/interfaces/jwt-payload';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TransactionsService } from './transactions.service';
 import {
@@ -29,26 +29,26 @@ export class TransactionsController {
   constructor(private readonly transactions: TransactionsService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthUser, @Query() query: ListTransactionsQuery) {
+  list(@CurrentUser() user: IAuthUser, @Query() query: ListTransactionsQuery) {
     return this.transactions.list(user.id, query);
   }
 
   @Get(':id')
   findOne(
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: IAuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.transactions.findOne(user.id, id);
   }
 
   @Post()
-  create(@CurrentUser() user: AuthUser, @Body() dto: CreateTransactionDto) {
+  create(@CurrentUser() user: IAuthUser, @Body() dto: CreateTransactionDto) {
     return this.transactions.create(user.id, dto);
   }
 
   @Patch(':id')
   update(
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: IAuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTransactionDto,
   ) {
@@ -57,7 +57,7 @@ export class TransactionsController {
 
   @Delete(':id')
   remove(
-    @CurrentUser() user: AuthUser,
+    @CurrentUser() user: IAuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.transactions.remove(user.id, id);

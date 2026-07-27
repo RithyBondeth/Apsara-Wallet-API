@@ -11,12 +11,13 @@ import { and, eq, gt } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { refreshTokens, users } from '../../database/schema';
-import type { JwtPayload } from '../../common/interfaces/jwt-payload';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
-
-interface RefreshPayload extends JwtPayload {
-  jti: string;
-}
+import type {
+  IJwtPayload,
+  IRefreshPayload,
+} from '../../common/interfaces/jwt-payload';
+import { LoginDTO } from './dtos/login.dto';
+import { RegisterDTO } from './dtos/register.dto';
+import { RefreshTokenDTO } from './dtos/refresh-token.dto';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +27,7 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDTO) {
     const [existing] = await this.db
       .select({ id: users.id })
       .from(users)
@@ -49,7 +50,7 @@ export class AuthService {
     return this.buildSession(user.id, user.email);
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDTO) {
     const [user] = await this.db
       .select()
       .from(users)
@@ -60,10 +61,12 @@ export class AuthService {
     return this.buildSession(user.id, user.email);
   }
 
-  async refresh(rawToken: string) {
-    let payload: RefreshPayload;
+  async refresh(refreshTokenDTO: RefreshTokenDTO) {
+    let payload: IRefreshPayload;
+    const rawToken = refreshTokenDTO.refreshToken;
+
     try {
-      payload = await this.jwt.verifyAsync<RefreshPayload>(rawToken, {
+      payload = await this.jwt.verifyAsync<IRefreshPayload>(rawToken, {
         secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
       });
     } catch {
@@ -88,9 +91,11 @@ export class AuthService {
     return this.buildSession(payload.sub, payload.email);
   }
 
-  async logout(rawToken: string) {
+  async logout(refreshTokenDTO: RefreshTokenDTO) {
+    const rawToken = refreshTokenDTO.refreshToken;
+
     try {
-      const payload = await this.jwt.verifyAsync<RefreshPayload>(rawToken, {
+      const payload = await this.jwt.verifyAsync<IRefreshPayload>(rawToken, {
         secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
       });
       await this.db
@@ -104,7 +109,7 @@ export class AuthService {
 
   /** Signs an access token and a stored, rotatable refresh token. */
   private async buildSession(userId: string, email: string) {
-    const payload: JwtPayload = { sub: userId, email };
+    const payload: IJwtPayload = { sub: userId, email };
     const accessToken = await this.jwt.signAsync(payload, {
       secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
       expiresIn: this.config.getOrThrow('JWT_ACCESS_TTL'),

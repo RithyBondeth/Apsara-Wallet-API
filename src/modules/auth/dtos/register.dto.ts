@@ -3,16 +3,16 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  MinLength,
   MaxLength,
+  MinLength,
 } from 'class-validator';
 
-export class RegisterDto {
-  @ApiProperty({ example: 'sok@example.com' })
+export class RegisterDTO {
+  @ApiProperty({ example: 'elearning@example.com' })
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ example: 'Sok Dara' })
+  @ApiProperty({ example: 'Bondeth' })
   @IsString()
   @MinLength(1)
   @MaxLength(120)
@@ -28,22 +28,4 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   phone?: string;
-}
-
-export class LoginDto {
-  @ApiProperty({ example: 'sok@example.com' })
-  @IsEmail()
-  email!: string;
-
-  @ApiProperty({ example: 'Str0ngPass!' })
-  @IsString()
-  @MinLength(1)
-  password!: string;
-}
-
-export class RefreshDto {
-  @ApiProperty()
-  @IsString()
-  @MinLength(1)
-  refreshToken!: string;
 }
