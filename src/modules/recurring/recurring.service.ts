@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, asc, eq, isNull, lte, or, sql } from 'drizzle-orm';
@@ -13,6 +14,8 @@ import {
   transactions,
   wallets,
 } from '../../database/schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationTemplates } from '../notifications/notification-templates';
 import { CreateRecurringDto, UpdateRecurringDto } from './dto/recurring.dto';
 
 /** Signed riel effect on a wallet: income adds, expense subtracts. */
@@ -50,7 +53,12 @@ function nextOccurrence(due: Date, frequency: string): Date {
 
 @Injectable()
 export class RecurringService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
+  private readonly logger = new Logger(RecurringService.name);
+
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleDB,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** The user's recurring rules, soonest-due first. */
   async list(userId: string) {
@@ -135,7 +143,11 @@ export class RecurringService {
       )
       .orderBy(asc(recurringRules.nextDue));
 
-    return this.materialize(due, now);
+    const result = await this.materialize(due, now);
+    if (result.posted > 0) {
+      await this.emitPosted(userId, result.posted);
+    }
+    return { posted: result.posted, rulesRun: due.length, capped: result.capped };
   }
 
   /**
@@ -152,8 +164,28 @@ export class RecurringService {
       .orderBy(asc(recurringRules.nextDue));
 
     const result = await this.materialize(due, now);
-    const usersAffected = new Set(due.map((r) => r.userId)).size;
-    return { ...result, usersAffected };
+    for (const [uid, count] of Object.entries(result.postedByUser)) {
+      await this.emitPosted(uid, count);
+    }
+    const usersAffected = Object.keys(result.postedByUser).length;
+    return {
+      posted: result.posted,
+      rulesRun: due.length,
+      capped: result.capped,
+      usersAffected,
+    };
+  }
+
+  /** Notify a user that recurring occurrences posted (never breaks the run). */
+  private async emitPosted(userId: string, count: number) {
+    try {
+      await this.notifications.emit(
+        userId,
+        NotificationTemplates.recurringPosted(count),
+      );
+    } catch (err) {
+      this.logger.error('Failed to emit recurring notification', err as Error);
+    }
   }
 
   /**
@@ -168,6 +200,7 @@ export class RecurringService {
   ) {
     let posted = 0;
     let capped = false;
+    const postedByUser: Record<string, number> = {};
 
     for (const rule of due) {
       await this.db.transaction(async (tx) => {
@@ -211,10 +244,13 @@ export class RecurringService {
           .where(eq(recurringRules.id, rule.id));
 
         posted += count;
+        if (count > 0) {
+          postedByUser[rule.userId] = (postedByUser[rule.userId] ?? 0) + count;
+        }
       });
     }
 
-    return { posted, rulesRun: due.length, capped };
+    return { posted, capped, postedByUser };
   }
 
   private async assertWalletOwned(userId: string, walletId: string) {

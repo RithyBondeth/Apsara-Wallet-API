@@ -1,4 +1,11 @@
-import { pgTable, uuid, text, boolean, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  text,
+  boolean,
+  timestamp,
+  jsonb,
+} from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
 
 export const notifications = pgTable('notifications', {
@@ -6,6 +13,11 @@ export const notifications = pgTable('notifications', {
   userId: uuid()
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  // Event kind (e.g. 'recurring_posted') so bilingual clients can localize the
+  // copy themselves; title/body hold a server-rendered fallback.
+  type: text(),
+  // Params for client-side localization (counts, names, percentages).
+  data: jsonb().$type<Record<string, unknown>>(),
   title: text().notNull(),
   body: text().notNull(),
   icon: text(),
