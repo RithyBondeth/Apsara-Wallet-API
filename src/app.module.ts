@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -20,6 +21,10 @@ import { TransfersModule } from './modules/transfers/transfers.module';
       validate: validateEnv,
     }),
     ScheduleModule.forRoot(),
+    // Storage/config for ThrottlerGuard. The guard is applied only to the
+    // sensitive auth endpoints (see AuthController), not globally, so normal
+    // app traffic (which bursts on dashboard open) is never rate-limited.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     DatabaseModule,
     AuthModule,
     CategoriesModule,

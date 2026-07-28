@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { IAuthUser } from '../../common/interfaces/jwt-payload';
 import { AuthService } from './auth.service';
@@ -25,6 +26,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Create an account and return a token pair' })
   register(@Body() registerDTO: RegisterDTO) {
     return this.auth.register(registerDTO);
@@ -32,6 +35,8 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Authenticate and return a token pair' })
   login(@Body() loginDTO: LoginDTO) {
     return this.auth.login(loginDTO);
@@ -53,6 +58,8 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @ApiOperation({ summary: 'Request a password reset token' })
   forgotPassword(@Body() dto: ForgotPasswordDTO) {
     return this.auth.forgotPassword(dto.email);
@@ -60,6 +67,8 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Set a new password using a reset token' })
   resetPassword(@Body() dto: ResetPasswordDTO) {
     return this.auth.resetPassword(dto.token, dto.newPassword);
