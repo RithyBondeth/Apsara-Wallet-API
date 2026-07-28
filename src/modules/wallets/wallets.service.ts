@@ -1,8 +1,13 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ne } from 'drizzle-orm';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, count, eq, ne } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB, DrizzleTx } from '../../database/database.module';
-import { wallets } from '../../database/schema';
+import { transactions, wallets } from '../../database/schema';
 import { CreateWalletDto, UpdateWalletDto } from './dto/wallet.dto';
 
 @Injectable()
@@ -61,8 +66,17 @@ export class WalletsService {
 
   async remove(userId: string, id: string) {
     await this.findOne(userId, id);
-    // FK on transactions is onDelete: 'restrict' — Postgres blocks deletion of a
-    // wallet that still has transactions, surfaced as a 500-level DB error.
+    // FK on transactions is onDelete: 'restrict'. Rather than let Postgres throw
+    // a raw 500, check first and surface a friendly 409 the client can explain.
+    const [{ value: txCount }] = await this.db
+      .select({ value: count() })
+      .from(transactions)
+      .where(eq(transactions.walletId, id));
+    if (txCount > 0) {
+      throw new ConflictException(
+        'This wallet still has transactions. Move or delete them first.',
+      );
+    }
     await this.db.delete(wallets).where(eq(wallets.id, id));
     return { success: true };
   }

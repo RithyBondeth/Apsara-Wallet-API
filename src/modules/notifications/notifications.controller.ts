@@ -1,5 +1,7 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -11,14 +13,19 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { IAuthUser } from '../../common/interfaces/jwt-payload';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RegisterDeviceDto } from './dto/register-device.dto';
 import { NotificationsService } from './notifications.service';
+import { PushService } from './push.service';
 
 @ApiTags('notifications')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly push: PushService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List notifications (newest first)' })
@@ -39,5 +46,23 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark all notifications as read' })
   markAllRead(@CurrentUser() user: IAuthUser) {
     return this.notifications.markAllRead(user.id);
+  }
+
+  @Post('devices')
+  @ApiOperation({ summary: 'Register this device for push notifications' })
+  registerDevice(
+    @CurrentUser() user: IAuthUser,
+    @Body() dto: RegisterDeviceDto,
+  ) {
+    return this.push.registerToken(user.id, dto.token, dto.platform);
+  }
+
+  @Delete('devices/:token')
+  @ApiOperation({ summary: 'Unregister a device (e.g. on logout)' })
+  unregisterDevice(
+    @CurrentUser() user: IAuthUser,
+    @Param('token') token: string,
+  ) {
+    return this.push.removeToken(user.id, token);
   }
 }

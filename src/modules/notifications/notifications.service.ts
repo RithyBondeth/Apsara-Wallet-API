@@ -4,10 +4,14 @@ import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { notifications } from '../../database/schema';
 import { EmitNotification } from './notification-templates';
+import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationsService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleDB,
+    private readonly push: PushService,
+  ) {}
 
   /** The user's notifications, newest first. */
   async list(userId: string) {
@@ -38,6 +42,9 @@ export class NotificationsService {
         color: n.color,
       })
       .returning();
+    // Also deliver a push (no-op when FCM isn't configured). sendToUser never
+    // throws, so this can't affect the persisted notification.
+    void this.push.sendToUser(userId, n, row.id);
     return row;
   }
 

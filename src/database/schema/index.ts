@@ -7,3 +7,4 @@ export * from './budgets.schema';
 export * from './recurring.schema';
 export * from './savings-goals.schema';
 export * from './notifications.schema';
+export * from './device-tokens.schema';
