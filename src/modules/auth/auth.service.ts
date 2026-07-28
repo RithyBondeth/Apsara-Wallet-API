@@ -2,6 +2,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,11 @@ import { and, eq, gt } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { refreshTokens, users } from '../../database/schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  EmitNotification,
+  NotificationTemplates,
+} from '../notifications/notification-templates';
 import type {
   IJwtPayload,
   IRefreshPayload,
@@ -22,11 +28,23 @@ import { UpdateProfileDTO } from './dtos/update-profile.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** Fire-and-forget security notification — never breaks the auth flow. */
+  private async notify(userId: string, n: EmitNotification) {
+    try {
+      await this.notifications.emit(userId, n);
+    } catch (err) {
+      this.logger.error('Failed to emit security notification', err as Error);
+    }
+  }
 
   async register(dto: RegisterDTO) {
     const [existing] = await this.db
@@ -58,6 +76,7 @@ export class AuthService {
     if (dto.phone !== undefined) changes.phone = dto.phone || null;
     if (Object.keys(changes).length > 0) {
       await this.db.update(users).set(changes).where(eq(users.id, userId));
+      await this.notify(userId, NotificationTemplates.profileUpdated());
     }
     return this.profile(userId);
   }
@@ -88,6 +107,7 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid email or password');
     }
+    await this.notify(user.id, NotificationTemplates.newSignIn());
     return this.buildSession(user.id, user.email);
   }
 
@@ -192,6 +212,7 @@ export class AuthService {
     await this.db
       .delete(refreshTokens)
       .where(eq(refreshTokens.userId, payload.sub));
+    await this.notify(payload.sub, NotificationTemplates.passwordChanged());
     return { success: true };
   }
 

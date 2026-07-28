@@ -147,7 +147,11 @@ export class RecurringService {
     if (result.posted > 0) {
       await this.emitPosted(userId, result.posted);
     }
-    return { posted: result.posted, rulesRun: due.length, capped: result.capped };
+    return {
+      posted: result.posted,
+      rulesRun: due.length,
+      capped: result.capped,
+    };
   }
 
   /**

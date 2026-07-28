@@ -52,4 +52,37 @@ export const NotificationTemplates = {
       color: '#E8A33D',
     };
   },
+
+  newSignIn(): EmitNotification {
+    return {
+      type: 'security_login',
+      data: {},
+      title: 'New sign-in',
+      body: "Your account was just signed in to. If this wasn't you, reset your password.",
+      icon: 'shieldCheck',
+      color: '#3E7BFA',
+    };
+  },
+
+  passwordChanged(): EmitNotification {
+    return {
+      type: 'security_password',
+      data: {},
+      title: 'Password changed',
+      body: 'Your account password was just changed.',
+      icon: 'lock',
+      color: '#E8A33D',
+    };
+  },
+
+  profileUpdated(): EmitNotification {
+    return {
+      type: 'security_profile',
+      data: {},
+      title: 'Profile updated',
+      body: 'Your profile details were updated.',
+      icon: 'userPen',
+      color: '#3E7BFA',
+    };
+  },
 };
