@@ -17,6 +17,7 @@ import {
   EmitNotification,
   NotificationTemplates,
 } from '../notifications/notification-templates';
+import { EmailService } from './email.service';
 import type {
   IJwtPayload,
   IRefreshPayload,
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
   ) {}
 
   /** Fire-and-forget security notification — never breaks the auth flow. */
@@ -178,6 +180,9 @@ export class AuthService {
           expiresIn: '15m',
         },
       );
+      // Fire the email (no-op if Resend isn't configured). Never blocks or
+      // fails the response — the message is identical either way.
+      await this.email.sendPasswordReset(user.email, resetToken);
     }
 
     const isProd = this.config.get('NODE_ENV') === 'production';

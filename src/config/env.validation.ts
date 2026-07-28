@@ -52,6 +52,20 @@ class EnvVars {
   @IsOptional()
   @IsBooleanString()
   RECURRING_SCHEDULER_ENABLED?: string;
+
+  // Resend transactional email (password reset). Unset = emails disabled;
+  // in dev the reset token is returned in the response instead.
+  @IsOptional()
+  @IsString()
+  RESEND_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  RESEND_FROM?: string;
+
+  @IsOptional()
+  @IsString()
+  PASSWORD_RESET_URL?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
