@@ -18,6 +18,7 @@ import type {
 import { LoginDTO } from './dtos/login.dto';
 import { RegisterDTO } from './dtos/register.dto';
 import { RefreshTokenDTO } from './dtos/refresh-token.dto';
+import { UpdateProfileDTO } from './dtos/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -48,6 +49,20 @@ export class AuthService {
       .returning();
 
     return this.buildSession(user.id, user.email);
+  }
+
+  /** Updates the user's editable profile fields and returns the fresh profile. */
+  async updateProfile(userId: string, dto: UpdateProfileDTO) {
+    const changes: Partial<{ fullName: string; phone: string | null }> = {};
+    if (dto.fullName !== undefined) changes.fullName = dto.fullName;
+    if (dto.phone !== undefined) changes.phone = dto.phone || null;
+    if (Object.keys(changes).length > 0) {
+      await this.db
+        .update(users)
+        .set(changes)
+        .where(eq(users.id, userId));
+    }
+    return this.profile(userId);
   }
 
   /** The signed-in user's profile (no secrets). */
@@ -121,6 +136,64 @@ export class AuthService {
     } catch {
       // Already invalid/expired — nothing to revoke.
     }
+    return { success: true };
+  }
+
+  /**
+   * Issues a short-lived reset token for the account (if it exists). There is
+   * no email service, so in non-production the token is returned in the
+   * response — in production it would be emailed and never returned. The
+   * message is identical whether or not the account exists (no enumeration).
+   */
+  async forgotPassword(email: string) {
+    const [user] = await this.db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+
+    let resetToken: string | undefined;
+    if (user) {
+      resetToken = await this.jwt.signAsync(
+        { sub: user.id, email: user.email, purpose: 'reset' },
+        {
+          secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
+          expiresIn: '15m',
+        },
+      );
+    }
+
+    const isProd = this.config.get('NODE_ENV') === 'production';
+    return {
+      message:
+        'If an account exists for that email, a password reset link has been sent.',
+      // Dev only — production emails the token instead of returning it.
+      ...(isProd ? {} : { resetToken }),
+    };
+  }
+
+  /** Consumes a reset token and sets a new password, revoking all sessions. */
+  async resetPassword(token: string, newPassword: string) {
+    let payload: { sub: string; purpose?: string };
+    try {
+      payload = await this.jwt.verifyAsync(token, {
+        secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+    if (payload.purpose !== 'reset') {
+      throw new UnauthorizedException('Invalid reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, payload.sub));
+    // Revoke every existing session for safety.
+    await this.db
+      .delete(refreshTokens)
+      .where(eq(refreshTokens.userId, payload.sub));
     return { success: true };
   }
 

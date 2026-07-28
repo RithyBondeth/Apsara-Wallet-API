@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { IAuthUser } from '../../common/interfaces/jwt-payload';
@@ -7,6 +15,9 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterDTO } from './dtos/register.dto';
 import { LoginDTO } from './dtos/login.dto';
 import { RefreshTokenDTO } from './dtos/refresh-token.dto';
+import { UpdateProfileDTO } from './dtos/update-profile.dto';
+import { ForgotPasswordDTO } from './dtos/forgot-password.dto';
+import { ResetPasswordDTO } from './dtos/reset-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -40,11 +51,33 @@ export class AuthController {
     return this.auth.logout(refreshTokenDTO);
   }
 
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request a password reset token' })
+  forgotPassword(@Body() dto: ForgotPasswordDTO) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Set a new password using a reset token' })
+  resetPassword(@Body() dto: ResetPasswordDTO) {
+    return this.auth.resetPassword(dto.token, dto.newPassword);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Return the signed-in user's profile" })
   me(@CurrentUser() user: IAuthUser) {
     return this.auth.profile(user.id);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Update the signed-in user's name/phone" })
+  updateMe(@CurrentUser() user: IAuthUser, @Body() dto: UpdateProfileDTO) {
+    return this.auth.updateProfile(user.id, dto);
   }
 }
