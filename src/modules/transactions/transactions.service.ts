@@ -31,6 +31,7 @@ import { NotificationTemplates } from '../notifications/notification-templates';
 import {
   CreateTransactionDto,
   ListTransactionsQuery,
+  TransactionType,
   UpdateTransactionDto,
 } from './dto/transaction.dto';
 
@@ -122,7 +123,7 @@ export class TransactionsService {
 
     // After it's committed (so the spend total includes it), alert if this
     // expense just pushed the category over its monthly budget.
-    if (dto.type === 'expense') {
+    if (dto.type === TransactionType.Expense) {
       await this.maybeEmitBudgetAlert(
         userId,
         dto.categoryId,
