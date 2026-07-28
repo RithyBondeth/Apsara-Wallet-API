@@ -57,10 +57,7 @@ export class AuthService {
     if (dto.fullName !== undefined) changes.fullName = dto.fullName;
     if (dto.phone !== undefined) changes.phone = dto.phone || null;
     if (Object.keys(changes).length > 0) {
-      await this.db
-        .update(users)
-        .set(changes)
-        .where(eq(users.id, userId));
+      await this.db.update(users).set(changes).where(eq(users.id, userId));
     }
     return this.profile(userId);
   }
@@ -73,6 +70,7 @@ export class AuthService {
         email: users.email,
         fullName: users.fullName,
         phone: users.phone,
+        createdAt: users.createdAt,
       })
       .from(users)
       .where(eq(users.id, userId));
