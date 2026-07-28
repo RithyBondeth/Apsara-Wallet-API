@@ -1,8 +1,10 @@
 import { plainToInstance, Type } from 'class-transformer';
 import {
+  IsBooleanString,
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -44,6 +46,12 @@ class EnvVars {
   @IsString()
   @IsNotEmpty()
   JWT_REFRESH_TTL!: string;
+
+  // Set to 'false' to disable the hourly recurring-materialization cron
+  // (defaults to enabled). See RecurringSchedulerService.
+  @IsOptional()
+  @IsBooleanString()
+  RECURRING_SCHEDULER_ENABLED?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

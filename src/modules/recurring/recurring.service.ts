@@ -114,9 +114,10 @@ export class RecurringService {
 
   /**
    * Materialize every occurrence that has come due (nextDue <= now) into real
-   * ledger transactions, moving wallet balances, then advance each rule's
-   * nextDue past now. Idempotent between calls: a rule only posts occurrences
-   * whose due date has actually passed, and each posting advances the anchor.
+   * ledger transactions for ONE user, moving wallet balances, then advance
+   * each rule's nextDue past now. Idempotent between calls: a rule only posts
+   * occurrences whose due date has actually passed, and each posting advances
+   * the anchor.
    *
    * Catch-up is capped per rule (a long-dormant account never floods the
    * ledger); the cap is reported back so callers can surface it.
@@ -134,6 +135,37 @@ export class RecurringService {
       )
       .orderBy(asc(recurringRules.nextDue));
 
+    return this.materialize(due, now);
+  }
+
+  /**
+   * Materialize due occurrences for EVERY user — the scheduler entry point.
+   * Same semantics as [runDue] but not scoped to one user; each rule carries
+   * its own userId. Returns the aggregate posted/rulesRun/usersAffected.
+   */
+  async runDueAll(asOf?: Date) {
+    const now = asOf ?? new Date();
+    const due = await this.db
+      .select()
+      .from(recurringRules)
+      .where(lte(recurringRules.nextDue, now))
+      .orderBy(asc(recurringRules.nextDue));
+
+    const result = await this.materialize(due, now);
+    const usersAffected = new Set(due.map((r) => r.userId)).size;
+    return { ...result, usersAffected };
+  }
+
+  /**
+   * Shared core: posts each due rule's missed occurrences atomically (one DB
+   * transaction per rule so a single rule's failure can't corrupt the rest),
+   * moving that rule's wallet and advancing its nextDue. userId is read from
+   * each rule, so this works whether called for one user or all.
+   */
+  private async materialize(
+    due: (typeof recurringRules.$inferSelect)[],
+    now: Date,
+  ) {
     let posted = 0;
     let capped = false;
 
@@ -144,7 +176,7 @@ export class RecurringService {
         let count = 0;
         while (cursor <= now && count < MAX_CATCHUP) {
           await tx.insert(transactions).values({
-            userId,
+            userId: rule.userId,
             walletId: rule.walletId,
             categoryId: rule.categoryId,
             title: rule.title,
@@ -169,7 +201,7 @@ export class RecurringService {
             .where(
               and(
                 eq(wallets.id, rule.walletId),
-                eq(wallets.userId, userId),
+                eq(wallets.userId, rule.userId),
               ),
             );
         }
