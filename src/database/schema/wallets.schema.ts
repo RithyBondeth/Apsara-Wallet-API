@@ -5,6 +5,7 @@ import {
   bigint,
   doublePrecision,
   boolean,
+  integer,
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
@@ -24,6 +25,8 @@ export const wallets = pgTable('wallets', {
   shortCode: text(),
   icon: text(), // icon token resolved client-side
   isPrimary: boolean().notNull().default(false),
+  // Manual sort order (drag-to-reorder). Ties fall back to createdAt.
+  position: integer().notNull().default(0),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

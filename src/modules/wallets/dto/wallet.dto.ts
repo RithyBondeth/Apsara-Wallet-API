@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsHexColor,
@@ -7,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -69,3 +72,14 @@ export class CreateWalletDto {
 }
 
 export class UpdateWalletDto extends PartialType(CreateWalletDto) {}
+
+export class ReorderWalletsDto {
+  @ApiProperty({
+    type: [String],
+    description: 'All of the user’s wallet ids in the desired order',
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  ids!: string[];
+}

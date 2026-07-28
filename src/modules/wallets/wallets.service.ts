@@ -1,10 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, count, eq, ne } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, max, ne } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB, DrizzleTx } from '../../database/database.module';
 import { transactions, wallets } from '../../database/schema';
@@ -15,11 +16,15 @@ export class WalletsService {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   list(userId: string) {
-    return this.db
-      .select()
-      .from(wallets)
-      .where(eq(wallets.userId, userId))
-      .orderBy(wallets.createdAt);
+    return (
+      this.db
+        .select()
+        .from(wallets)
+        .where(eq(wallets.userId, userId))
+        // Manual order first; createdAt breaks ties (and orders legacy rows,
+        // which all default to position 0).
+        .orderBy(asc(wallets.position), asc(wallets.createdAt))
+    );
   }
 
   async summary(userId: string) {
@@ -43,12 +48,41 @@ export class WalletsService {
   async create(userId: string, dto: CreateWalletDto) {
     return this.db.transaction(async (tx) => {
       if (dto.isPrimary) await this.clearPrimary(tx, userId);
+      // Append: one past the user's current highest position.
+      const [{ maxPos }] = await tx
+        .select({ maxPos: max(wallets.position) })
+        .from(wallets)
+        .where(eq(wallets.userId, userId));
       const [row] = await tx
         .insert(wallets)
-        .values({ ...dto, userId })
+        .values({ ...dto, userId, position: (maxPos ?? -1) + 1 })
         .returning();
       return row;
     });
+  }
+
+  /**
+   * Persist a manual wallet order: [ids] is the full ordered list of the user's
+   * wallet ids; each wallet's position becomes its index. Rejects if any id
+   * isn't the user's (so a stray/foreign id can't shuffle another account).
+   */
+  async reorder(userId: string, ids: string[]) {
+    const owned = await this.db
+      .select({ id: wallets.id })
+      .from(wallets)
+      .where(and(eq(wallets.userId, userId), inArray(wallets.id, ids)));
+    if (owned.length !== ids.length) {
+      throw new BadRequestException('Reorder list must be your own wallets');
+    }
+    await this.db.transaction(async (tx) => {
+      for (let i = 0; i < ids.length; i++) {
+        await tx
+          .update(wallets)
+          .set({ position: i, updatedAt: new Date() })
+          .where(and(eq(wallets.id, ids[i]), eq(wallets.userId, userId)));
+      }
+    });
+    return this.list(userId);
   }
 
   async update(userId: string, id: string, dto: UpdateWalletDto) {
