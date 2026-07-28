@@ -38,8 +38,11 @@ export class RecurringSchedulerService {
     }
     this.running = true;
     try {
-      const result = await this.recurring.runDueAll();
-      if (result.posted > 0) {
+      // Leader-gated: only the instance that wins the advisory lock runs.
+      const result = await this.recurring.runDueAllIfLeader();
+      if (result.skipped) {
+        this.logger.debug('Another instance holds the run lock; skipping.');
+      } else if (result.posted > 0) {
         this.logger.log(
           `Posted ${result.posted} occurrence(s) across ` +
             `${result.rulesRun} rule(s) for ${result.usersAffected} user(s)` +

@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { IAuthUser } from '../../common/interfaces/jwt-payload';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { EmitInsightDto } from './dto/emit-insight.dto';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 import { NotificationsService } from './notifications.service';
 import { PushService } from './push.service';
@@ -46,6 +47,14 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark all notifications as read' })
   markAllRead(@CurrentUser() user: IAuthUser) {
     return this.notifications.markAllRead(user.id);
+  }
+
+  @Post('insight')
+  @ApiOperation({
+    summary: 'Post the monthly insight digest (deduped per period)',
+  })
+  emitInsight(@CurrentUser() user: IAuthUser, @Body() dto: EmitInsightDto) {
+    return this.notifications.emitInsight(user.id, dto);
   }
 
   @Post('devices')

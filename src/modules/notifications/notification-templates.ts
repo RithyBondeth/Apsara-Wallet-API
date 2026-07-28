@@ -85,4 +85,19 @@ export const NotificationTemplates = {
       color: '#3E7BFA',
     };
   },
+
+  insightMonthly(
+    periodKey: string,
+    spentKhr: number,
+    count: number,
+  ): EmitNotification {
+    return {
+      type: 'insight',
+      data: { periodKey, spentKhr, count },
+      title: 'Monthly insight',
+      body: `This month you spent ${spentKhr.toLocaleString('en-US')} riel across ${count} transaction${count === 1 ? '' : 's'}.`,
+      icon: 'sparkles',
+      color: '#6C63D2',
+    };
+  },
 };

@@ -26,6 +26,12 @@ function signedAmount(type: string, amountKhr: number): number {
 /** Never post more than this many catch-up occurrences for one rule in a run. */
 const MAX_CATCHUP = 120;
 
+/**
+ * Arbitrary application-wide key for the Postgres advisory lock that guards the
+ * recurring cron, so only one API instance materializes at a time.
+ */
+const RUN_LOCK_KEY = 84822917;
+
 /** The occurrence after [due] for a given frequency (UTC). */
 function nextOccurrence(due: Date, frequency: string): Date {
   if (frequency === 'weekly') {
@@ -178,6 +184,35 @@ export class RecurringService {
       capped: result.capped,
       usersAffected,
     };
+  }
+
+  /**
+   * Scheduler entry point with a cross-instance guard: acquires a Postgres
+   * advisory lock for the duration of the run so that when multiple API
+   * instances fire the cron at the same tick, only one materializes (the
+   * others skip). The lock is transaction-scoped — it auto-releases on commit
+   * OR rollback, so a crash mid-run can never leave it stuck. The per-rule
+   * work still runs on its own pooled connections/transactions; the outer
+   * transaction only holds the lock.
+   */
+  async runDueAllIfLeader(asOf?: Date) {
+    return this.db.transaction(async (tx) => {
+      const res = await tx.execute<{ locked: boolean }>(
+        sql`SELECT pg_try_advisory_xact_lock(${RUN_LOCK_KEY}) AS locked`,
+      );
+      if (res.rows[0]?.locked !== true) {
+        // Another instance holds the lock and is running the job.
+        return {
+          posted: 0,
+          rulesRun: 0,
+          capped: false,
+          usersAffected: 0,
+          skipped: true,
+        };
+      }
+      const result = await this.runDueAll(asOf);
+      return { ...result, skipped: false };
+    });
   }
 
   /** Notify a user that recurring occurrences posted (never breaks the run). */

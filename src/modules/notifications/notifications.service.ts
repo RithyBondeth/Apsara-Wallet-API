@@ -1,9 +1,13 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { notifications } from '../../database/schema';
-import { EmitNotification } from './notification-templates';
+import { EmitInsightDto } from './dto/emit-insight.dto';
+import {
+  EmitNotification,
+  NotificationTemplates,
+} from './notification-templates';
 import { PushService } from './push.service';
 
 @Injectable()
@@ -46,6 +50,35 @@ export class NotificationsService {
     // throws, so this can't affect the persisted notification.
     void this.push.sendToUser(userId, n, row.id);
     return row;
+  }
+
+  /**
+   * Create a monthly-insight notification for the user, deduped so it fires at
+   * most once per period (`periodKey`). Insights are computed on-device, so the
+   * client posts the digest; the backend is the source of dedupe truth across
+   * devices. Returns whether a new one was created.
+   */
+  async emitInsight(userId: string, dto: EmitInsightDto) {
+    const [existing] = await this.db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.type, 'insight'),
+          sql`${notifications.data} ->> 'periodKey' = ${dto.periodKey}`,
+        ),
+      );
+    if (existing) return { created: false };
+    await this.emit(
+      userId,
+      NotificationTemplates.insightMonthly(
+        dto.periodKey,
+        dto.spentKhr,
+        dto.count,
+      ),
+    );
+    return { created: true };
   }
 
   async markRead(userId: string, id: string) {
