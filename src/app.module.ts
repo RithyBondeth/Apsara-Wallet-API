@@ -13,6 +13,7 @@ import { RecurringModule } from './modules/recurring/recurring.module';
 import { SavingsGoalsModule } from './modules/savings-goals/savings-goals.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TransfersModule } from './modules/transfers/transfers.module';
     SavingsGoalsModule,
     NotificationsModule,
     TransfersModule,
+    FeedbackModule,
   ],
 })
 export class AppModule {}

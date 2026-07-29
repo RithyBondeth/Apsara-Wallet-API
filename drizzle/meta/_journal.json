@@ -43,6 +43,13 @@
       "when": 1785253038523,
       "tag": "0005_curly_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785290827199,
+      "tag": "0006_young_viper",
+      "breakpoints": true
     }
   ]
 }

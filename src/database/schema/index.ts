@@ -9,3 +9,4 @@ export * from './savings-goals.schema';
 export * from './notifications.schema';
 export * from './device-tokens.schema';
 export * from './transfers.schema';
+export * from './feedback.schema';
