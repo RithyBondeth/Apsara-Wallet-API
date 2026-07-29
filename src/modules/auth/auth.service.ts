@@ -11,7 +11,12 @@ import * as bcrypt from 'bcrypt';
 import { and, eq, gt } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
-import { refreshTokens, users } from '../../database/schema';
+import {
+  recurringRules,
+  refreshTokens,
+  transactions,
+  users,
+} from '../../database/schema';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   EmitNotification,
@@ -81,6 +86,34 @@ export class AuthService {
       await this.notify(userId, NotificationTemplates.profileUpdated());
     }
     return this.profile(userId);
+  }
+
+  /**
+   * Permanently deletes the account and all its data after verifying the
+   * user's password. Most tables cascade off `users.id`, but `transactions`
+   * and `recurring_rules` hold ON DELETE RESTRICT foreign keys to
+   * wallets/categories, so they are removed first (inside one transaction) —
+   * then deleting the user cascades away everything else.
+   */
+  async deleteAccount(userId: string, password: string) {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      throw new UnauthorizedException('Incorrect password');
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx.delete(transactions).where(eq(transactions.userId, userId));
+      await tx.delete(recurringRules).where(eq(recurringRules.userId, userId));
+      await tx.delete(users).where(eq(users.id, userId));
+    });
+
+    return { success: true };
   }
 
   /** The signed-in user's profile (no secrets). */

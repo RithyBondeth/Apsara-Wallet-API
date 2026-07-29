@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Patch,
@@ -19,6 +20,7 @@ import { RefreshTokenDTO } from './dtos/refresh-token.dto';
 import { UpdateProfileDTO } from './dtos/update-profile.dto';
 import { ForgotPasswordDTO } from './dtos/forgot-password.dto';
 import { ResetPasswordDTO } from './dtos/reset-password.dto';
+import { DeleteAccountDTO } from './dtos/delete-account.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -88,5 +90,15 @@ export class AuthController {
   @ApiOperation({ summary: "Update the signed-in user's name/phone" })
   updateMe(@CurrentUser() user: IAuthUser, @Body() dto: UpdateProfileDTO) {
     return this.auth.updateProfile(user.id, dto);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Permanently delete the signed-in account and all its data',
+  })
+  deleteMe(@CurrentUser() user: IAuthUser, @Body() dto: DeleteAccountDTO) {
+    return this.auth.deleteAccount(user.id, dto.password);
   }
 }
