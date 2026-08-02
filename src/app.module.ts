@@ -1,10 +1,46 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { validateEnv } from './config/env.validation';
+import { DatabaseModule } from './database/database.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { WalletsModule } from './modules/wallets/wallets.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
+import { BudgetsModule } from './modules/budgets/budgets.module';
+import { RecurringModule } from './modules/recurring/recurring.module';
+import { SavingsGoalsModule } from './modules/savings-goals/savings-goals.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { TransfersModule } from './modules/transfers/transfers.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { FxModule } from './modules/fx/fx.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
+    ScheduleModule.forRoot(),
+    // Storage/config for ThrottlerGuard. The guard is applied only to the
+    // sensitive auth endpoints (see AuthController), not globally, so normal
+    // app traffic (which bursts on dashboard open) is never rate-limited.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
+    DatabaseModule,
+    AuthModule,
+    CategoriesModule,
+    WalletsModule,
+    TransactionsModule,
+    BudgetsModule,
+    RecurringModule,
+    SavingsGoalsModule,
+    NotificationsModule,
+    TransfersModule,
+    FeedbackModule,
+    FxModule,
+    HealthModule,
+  ],
 })
 export class AppModule {}

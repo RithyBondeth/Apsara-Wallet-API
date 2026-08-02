@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: apsara_wallet_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-apsara}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apsara}
+      POSTGRES_DB: ${POSTGRES_DB:-apsara_wallet}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - apsara_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-apsara} -d ${POSTGRES_DB:-apsara_wallet}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  apsara_pgdata:

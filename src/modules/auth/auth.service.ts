@@ -1,0 +1,299 @@
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { and, eq, gt } from 'drizzle-orm';
+import { DRIZZLE } from '../../database/database.module';
+import type { DrizzleDB } from '../../database/database.module';
+import {
+  recurringRules,
+  refreshTokens,
+  transactions,
+  users,
+} from '../../database/schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  EmitNotification,
+  NotificationTemplates,
+} from '../notifications/notification-templates';
+import { EmailService } from './email.service';
+import type {
+  IJwtPayload,
+  IRefreshPayload,
+} from '../../common/interfaces/jwt-payload';
+import { LoginDTO } from './dtos/login.dto';
+import { RegisterDTO } from './dtos/register.dto';
+import { RefreshTokenDTO } from './dtos/refresh-token.dto';
+import { UpdateProfileDTO } from './dtos/update-profile.dto';
+
+@Injectable()
+export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleDB,
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
+  ) {}
+
+  /** Fire-and-forget security notification — never breaks the auth flow. */
+  private async notify(userId: string, n: EmitNotification) {
+    try {
+      await this.notifications.emit(userId, n);
+    } catch (err) {
+      this.logger.error('Failed to emit security notification', err as Error);
+    }
+  }
+
+  async register(dto: RegisterDTO) {
+    const [existing] = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, dto.email.toLowerCase()));
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const [user] = await this.db
+      .insert(users)
+      .values({
+        email: dto.email.toLowerCase(),
+        fullName: dto.fullName,
+        phone: dto.phone,
+        passwordHash,
+      })
+      .returning();
+
+    return this.buildSession(user.id, user.email);
+  }
+
+  /** Updates the user's editable profile fields and returns the fresh profile. */
+  async updateProfile(userId: string, dto: UpdateProfileDTO) {
+    const changes: Partial<{ fullName: string; phone: string | null }> = {};
+    if (dto.fullName !== undefined) changes.fullName = dto.fullName;
+    if (dto.phone !== undefined) changes.phone = dto.phone || null;
+    if (Object.keys(changes).length > 0) {
+      await this.db.update(users).set(changes).where(eq(users.id, userId));
+      await this.notify(userId, NotificationTemplates.profileUpdated());
+    }
+    return this.profile(userId);
+  }
+
+  /**
+   * Permanently deletes the account and all its data after verifying the
+   * user's password. Most tables cascade off `users.id`, but `transactions`
+   * and `recurring_rules` hold ON DELETE RESTRICT foreign keys to
+   * wallets/categories, so they are removed first (inside one transaction) —
+   * then deleting the user cascades away everything else.
+   */
+  async deleteAccount(userId: string, password: string) {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      throw new UnauthorizedException('Incorrect password');
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx.delete(transactions).where(eq(transactions.userId, userId));
+      await tx.delete(recurringRules).where(eq(recurringRules.userId, userId));
+      await tx.delete(users).where(eq(users.id, userId));
+    });
+
+    return { success: true };
+  }
+
+  /** The signed-in user's profile (no secrets). */
+  async profile(userId: string) {
+    const [user] = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        fullName: users.fullName,
+        phone: users.phone,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return user;
+  }
+
+  async login(dto: LoginDTO) {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, dto.email.toLowerCase()));
+    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    await this.notify(user.id, NotificationTemplates.newSignIn());
+    return this.buildSession(user.id, user.email);
+  }
+
+  async refresh(refreshTokenDTO: RefreshTokenDTO) {
+    let payload: IRefreshPayload;
+    const rawToken = refreshTokenDTO.refreshToken;
+
+    try {
+      payload = await this.jwt.verifyAsync<IRefreshPayload>(rawToken, {
+        secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const [row] = await this.db
+      .select()
+      .from(refreshTokens)
+      .where(
+        and(
+          eq(refreshTokens.id, payload.jti),
+          gt(refreshTokens.expiresAt, new Date()),
+        ),
+      );
+    if (!row || !(await bcrypt.compare(rawToken, row.tokenHash))) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Rotate: the presented token can never be reused.
+    await this.db.delete(refreshTokens).where(eq(refreshTokens.id, row.id));
+    return this.buildSession(payload.sub, payload.email);
+  }
+
+  async logout(refreshTokenDTO: RefreshTokenDTO) {
+    const rawToken = refreshTokenDTO.refreshToken;
+
+    try {
+      const payload = await this.jwt.verifyAsync<IRefreshPayload>(rawToken, {
+        secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
+      });
+      await this.db
+        .delete(refreshTokens)
+        .where(eq(refreshTokens.id, payload.jti));
+    } catch {
+      // Already invalid/expired — nothing to revoke.
+    }
+    return { success: true };
+  }
+
+  /**
+   * Issues a short-lived reset token for the account (if it exists). There is
+   * no email service, so in non-production the token is returned in the
+   * response — in production it would be emailed and never returned. The
+   * message is identical whether or not the account exists (no enumeration).
+   */
+  async forgotPassword(email: string) {
+    const [user] = await this.db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+
+    let resetToken: string | undefined;
+    if (user) {
+      resetToken = await this.jwt.signAsync(
+        { sub: user.id, email: user.email, purpose: 'reset' },
+        {
+          secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
+          expiresIn: '15m',
+        },
+      );
+      // Fire the email (no-op if Resend isn't configured). Never blocks or
+      // fails the response — the message is identical either way.
+      await this.email.sendPasswordReset(user.email, resetToken);
+    }
+
+    const isProd = this.config.get('NODE_ENV') === 'production';
+    return {
+      message:
+        'If an account exists for that email, a password reset link has been sent.',
+      // Dev only — production emails the token instead of returning it.
+      ...(isProd ? {} : { resetToken }),
+    };
+  }
+
+  /** Consumes a reset token and sets a new password, revoking all sessions. */
+  async resetPassword(token: string, newPassword: string) {
+    let payload: { sub: string; purpose?: string };
+    try {
+      payload = await this.jwt.verifyAsync(token, {
+        secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+    if (payload.purpose !== 'reset') {
+      throw new UnauthorizedException('Invalid reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, payload.sub));
+    // Revoke every existing session for safety.
+    await this.db
+      .delete(refreshTokens)
+      .where(eq(refreshTokens.userId, payload.sub));
+    await this.notify(payload.sub, NotificationTemplates.passwordChanged());
+    return { success: true };
+  }
+
+  /** Signs an access token and a stored, rotatable refresh token. */
+  private async buildSession(userId: string, email: string) {
+    const payload: IJwtPayload = { sub: userId, email };
+    const accessToken = await this.jwt.signAsync(payload, {
+      secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
+      expiresIn: this.config.getOrThrow('JWT_ACCESS_TTL'),
+    });
+
+    // Reserve the row id first so it can be embedded as the token's jti.
+    const [row] = await this.db
+      .insert(refreshTokens)
+      .values({
+        userId,
+        tokenHash: '',
+        expiresAt: this.refreshExpiry(),
+      })
+      .returning({ id: refreshTokens.id });
+
+    const refreshToken = await this.jwt.signAsync(
+      { ...payload, jti: row.id },
+      {
+        secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
+        expiresIn: this.config.getOrThrow('JWT_REFRESH_TTL'),
+      },
+    );
+    await this.db
+      .update(refreshTokens)
+      .set({ tokenHash: await bcrypt.hash(refreshToken, 10) })
+      .where(eq(refreshTokens.id, row.id));
+
+    return { accessToken, refreshToken };
+  }
+
+  private refreshExpiry(): Date {
+    const ttl = this.config.getOrThrow<string>('JWT_REFRESH_TTL');
+    const match = /^(\d+)([smhd])$/.exec(ttl.trim());
+    const seconds = match
+      ? Number(match[1]) *
+        { s: 1, m: 60, h: 3600, d: 86400 }[match[2] as 's' | 'm' | 'h' | 'd']
+      : 60 * 60 * 24 * 30;
+    return new Date(Date.now() + seconds * 1000);
+  }
+}
