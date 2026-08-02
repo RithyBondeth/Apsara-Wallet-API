@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { FxModule } from './modules/fx/fx.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { FxModule } from './modules/fx/fx.module';
     TransfersModule,
     FeedbackModule,
     FxModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
