@@ -66,6 +66,24 @@ class EnvVars {
   @IsOptional()
   @IsString()
   PASSWORD_RESET_URL?: string;
+
+  // Comma-separated browser origins allowed through CORS. Unset in production
+  // means "no browser origin allowed" — native mobile clients are unaffected
+  // because they send no Origin header.
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS?: string;
+
+  // Set to 'true' to serve /docs in production (off by default).
+  @IsOptional()
+  @IsBooleanString()
+  SWAGGER_ENABLED?: string;
+
+  // Set to 'true' to force TLS on the Postgres connection when the URL has no
+  // sslmode parameter. Not needed on Railway's private network.
+  @IsOptional()
+  @IsBooleanString()
+  DATABASE_SSL?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
