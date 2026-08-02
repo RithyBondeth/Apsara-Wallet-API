@@ -29,6 +29,6 @@ USER node
 
 EXPOSE 3000
 
-# Apply pending migrations, then boot. Drizzle's migrator takes a Postgres
-# advisory lock, so concurrent instances starting together is safe.
+# Apply pending migrations, then boot. migrate.js serialises itself behind a
+# Postgres advisory lock, so concurrent instances starting together is safe.
 CMD ["sh", "-c", "node dist/database/migrate.js && node dist/main"]
