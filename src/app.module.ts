@@ -14,6 +14,7 @@ import { SavingsGoalsModule } from './modules/savings-goals/savings-goals.module
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
+import { FxModule } from './modules/fx/fx.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     NotificationsModule,
     TransfersModule,
     FeedbackModule,
+    FxModule,
   ],
 })
 export class AppModule {}
