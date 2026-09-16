@@ -21,18 +21,24 @@ import { UpdateProfileDTO } from './dtos/update-profile.dto';
 import { ForgotPasswordDTO } from './dtos/forgot-password.dto';
 import { ResetPasswordDTO } from './dtos/reset-password.dto';
 import { DeleteAccountDTO } from './dtos/delete-account.dto';
+import {
+  IAuthTokens,
+  IForgotPasswordResponse,
+  IAuthController,
+  ISuccessResponse,
+} from '../../common/interfaces/controllers/auth.interface';
 
 @ApiTags('auth')
 @Controller('auth')
-export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+export class AuthController implements IAuthController {
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Create an account and return a token pair' })
-  register(@Body() registerDTO: RegisterDTO) {
-    return this.auth.register(registerDTO);
+  async register(@Body() registerDTO: RegisterDTO): Promise<IAuthTokens> {
+    return this.authService.register(registerDTO);
   }
 
   @Post('login')
@@ -40,22 +46,22 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Authenticate and return a token pair' })
-  login(@Body() loginDTO: LoginDTO) {
-    return this.auth.login(loginDTO);
+  async login(@Body() loginDTO: LoginDTO): Promise<IAuthTokens> {
+    return this.authService.login(loginDTO);
   }
 
   @Post('refresh')
   @HttpCode(200)
   @ApiOperation({ summary: 'Rotate a refresh token for a new token pair' })
-  refresh(@Body() refreshTokenDTO: RefreshTokenDTO) {
-    return this.auth.refresh(refreshTokenDTO);
+  refresh(@Body() refreshTokenDTO: RefreshTokenDTO): Promise<IAuthTokens> {
+    return this.authService.refresh(refreshTokenDTO);
   }
 
   @Post('logout')
   @HttpCode(200)
   @ApiOperation({ summary: 'Revoke a refresh token' })
-  logout(@Body() refreshTokenDTO: RefreshTokenDTO) {
-    return this.auth.logout(refreshTokenDTO);
+  logout(@Body() refreshTokenDTO: RefreshTokenDTO): Promise<ISuccessResponse> {
+    return this.authService.logout(refreshTokenDTO);
   }
 
   @Post('forgot-password')
@@ -63,8 +69,10 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @ApiOperation({ summary: 'Request a password reset token' })
-  forgotPassword(@Body() dto: ForgotPasswordDTO) {
-    return this.auth.forgotPassword(dto.email);
+  forgotPassword(
+    @Body() dto: ForgotPasswordDTO,
+  ): Promise<IForgotPasswordResponse> {
+    return this.authService.forgotPassword(dto.email);
   }
 
   @Post('reset-password')
@@ -72,24 +80,27 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Set a new password using a reset token' })
-  resetPassword(@Body() dto: ResetPasswordDTO) {
-    return this.auth.resetPassword(dto.token, dto.newPassword);
+  resetPassword(@Body() dto: ResetPasswordDTO): Promise<ISuccessResponse> {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Return the signed-in user's profile" })
-  me(@CurrentUser() user: IAuthUser) {
-    return this.auth.profile(user.id);
+  me(@CurrentUser() user: IAuthUser): Promise<IAuthUser> {
+    return this.authService.profile(user.id);
   }
 
   @Patch('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update the signed-in user's name/phone" })
-  updateMe(@CurrentUser() user: IAuthUser, @Body() dto: UpdateProfileDTO) {
-    return this.auth.updateProfile(user.id, dto);
+  updateMe(
+    @CurrentUser() user: IAuthUser,
+    @Body() dto: UpdateProfileDTO,
+  ): Promise<IAuthUser> {
+    return this.authService.updateProfile(user.id, dto);
   }
 
   @Delete('me')
@@ -98,7 +109,10 @@ export class AuthController {
   @ApiOperation({
     summary: 'Permanently delete the signed-in account and all its data',
   })
-  deleteMe(@CurrentUser() user: IAuthUser, @Body() dto: DeleteAccountDTO) {
-    return this.auth.deleteAccount(user.id, dto.password);
+  deleteMe(
+    @CurrentUser() user: IAuthUser,
+    @Body() dto: DeleteAccountDTO,
+  ): Promise<ISuccessResponse> {
+    return this.authService.deleteAccount(user.id, dto.password);
   }
 }
