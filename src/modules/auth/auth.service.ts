@@ -22,7 +22,7 @@ import {
   EmitNotification,
   NotificationTemplates,
 } from '../notifications/notification-templates';
-import { EmailService } from './email.service';
+import { EmailService } from '../email/email.service';
 import type {
   IAuthUser,
   IJwtPayload,
@@ -32,7 +32,11 @@ import { LoginDTO } from './dtos/login.dto';
 import { RegisterDTO } from './dtos/register.dto';
 import { RefreshTokenDTO } from './dtos/refresh-token.dto';
 import { UpdateProfileDTO } from './dtos/update-profile.dto';
-import { IAuthTokens, IForgotPasswordResponse, ISuccessResponse } from '../../common/interfaces/controllers/auth.interface';
+import {
+  IAuthTokens,
+  IForgotPasswordResponse,
+  ISuccessResponse,
+} from '../../common/interfaces/controllers/auth.interface';
 
 @Injectable()
 export class AuthService {
@@ -41,16 +45,16 @@ export class AuthService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService,
-    private readonly notifications: NotificationsService,
-    private readonly email: EmailService,
+    private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
+    private readonly emailService: EmailService,
   ) { }
 
   /* ========================================== PRIVATE HELPER METHODS ========================================== */
   /** Fire-and-forget security notification — never breaks the auth flow. */
   private async notify(userId: string, n: EmitNotification) {
     try {
-      await this.notifications.emit(userId, n);
+      await this.notificationsService.emit(userId, n);
     } catch (err) {
       this.logger.error('Failed to emit security notification', err as Error);
     }
@@ -60,8 +64,8 @@ export class AuthService {
   private async buildSession(userId: string, email: string) {
     const payload: IJwtPayload = { sub: userId, email };
     const accessToken = await this.jwt.signAsync(payload, {
-      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.config.getOrThrow<number>('JWT_ACCESS_TTL'),
+      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      expiresIn: this.configService.getOrThrow<number>('JWT_ACCESS_TTL'),
     });
 
     const [row] = await this.db
@@ -76,8 +80,8 @@ export class AuthService {
     const refreshToken = await this.jwt.signAsync(
       { ...payload, jti: row.id },
       {
-        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.config.getOrThrow<number>('JWT_REFRESH_TTL'),
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        expiresIn: this.configService.getOrThrow<number>('JWT_REFRESH_TTL'),
       },
     );
     await this.db
@@ -90,7 +94,7 @@ export class AuthService {
 
   /** Convert the JWT_REFRESH_TTL into an absolute Date. */
   private refreshExpiry(): Date {
-    const ttl = this.config.getOrThrow<string>('JWT_REFRESH_TTL');
+    const ttl = this.configService.getOrThrow<string>('JWT_REFRESH_TTL');
     const match = /^(\d+)([smhd])$/.exec(ttl.trim());
     const seconds = match
       ? Number(match[1]) *
@@ -100,9 +104,7 @@ export class AuthService {
   }
 
   /* =========================================== PUBLIC AUTH METHODS ============================================ */
-  async register(
-    dto: RegisterDTO,
-  ): Promise<IAuthTokens> {
+  async register(dto: RegisterDTO): Promise<IAuthTokens> {
     const [existing] = await this.db
       .select({ id: users.id })
       .from(users)
@@ -125,9 +127,7 @@ export class AuthService {
     return this.buildSession(user.id, user.email);
   }
 
-  async login(
-    dto: LoginDTO,
-  ): Promise<IAuthTokens> {
+  async login(dto: LoginDTO): Promise<IAuthTokens> {
     const [user] = await this.db
       .select()
       .from(users)
@@ -145,7 +145,7 @@ export class AuthService {
 
     try {
       payload = await this.jwt.verifyAsync<IRefreshPayload>(rawToken, {
-        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -174,7 +174,7 @@ export class AuthService {
 
     try {
       const payload = await this.jwt.verifyAsync<IRefreshPayload>(rawToken, {
-        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
       await this.db
         .delete(refreshTokens)
@@ -194,16 +194,16 @@ export class AuthService {
       resetToken = await this.jwt.signAsync(
         { sub: user.id, email: user.email, purpose: 'reset' },
         {
-          secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+          secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
           expiresIn: '15m',
         },
       );
       // Fire the email (no-op if Resend isn't configured). Never blocks or
       // fails the response — the message is identical either way.
-      await this.email.sendPasswordReset(user.email, resetToken);
+      await this.emailService.sendPasswordReset(user.email, resetToken);
     }
 
-    const isProd = this.config.get('NODE_ENV') === 'production';
+    const isProd = this.configService.get('NODE_ENV') === 'production';
     return {
       message:
         'If an account exists for that email, a password reset link has been sent.',
@@ -212,11 +212,14 @@ export class AuthService {
     };
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<ISuccessResponse> {
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<ISuccessResponse> {
     let payload: { sub: string; purpose?: string };
     try {
       payload = await this.jwt.verifyAsync(token, {
-        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired reset token');
@@ -255,7 +258,10 @@ export class AuthService {
     return user;
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDTO): Promise<IAuthUser> {
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDTO,
+  ): Promise<IAuthUser> {
     const changes: Partial<{ fullName: string; phone: string | null }> = {};
     if (dto.fullName !== undefined) changes.fullName = dto.fullName;
     if (dto.phone !== undefined) changes.phone = dto.phone || null;
@@ -266,7 +272,10 @@ export class AuthService {
     return this.profile(userId);
   }
 
-  async deleteAccount(userId: string, password: string): Promise<ISuccessResponse> {
+  async deleteAccount(
+    userId: string,
+    password: string,
+  ): Promise<ISuccessResponse> {
     const [user] = await this.db
       .select()
       .from(users)
