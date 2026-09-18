@@ -1,3 +1,4 @@
+import { ChangePasswordDTO } from '../../../modules/auth/dtos/change-password.dto';
 import { DeleteAccountDTO } from '../../../modules/auth/dtos/delete-account.dto';
 import { ForgotPasswordDTO } from '../../../modules/auth/dtos/forgot-password.dto';
 import { LoginDTO } from '../../../modules/auth/dtos/login.dto';
@@ -30,5 +31,9 @@ export interface IAuthController {
   resetPassword(dto: ResetPasswordDTO): Promise<ISuccessResponse>;
   me(user: IAuthUser): Promise<IAuthUser>;
   updateMe(user: IAuthUser, dto: UpdateProfileDTO): Promise<IAuthUser>;
+  changePassword(
+    user: IAuthUser,
+    dto: ChangePasswordDTO,
+  ): Promise<ISuccessResponse>;
   deleteMe(user: IAuthUser, dto: DeleteAccountDTO): Promise<ISuccessResponse>;
 }

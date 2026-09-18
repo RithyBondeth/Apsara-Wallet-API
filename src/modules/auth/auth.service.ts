@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -32,6 +33,7 @@ import { LoginDTO } from './dtos/login.dto';
 import { RegisterDTO } from './dtos/register.dto';
 import { RefreshTokenDTO } from './dtos/refresh-token.dto';
 import { UpdateProfileDTO } from './dtos/update-profile.dto';
+import { ChangePasswordDTO } from './dtos/change-password.dto';
 import {
   IAuthTokens,
   IForgotPasswordResponse,
@@ -48,7 +50,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
-  ) { }
+  ) {}
 
   /* ========================================== PRIVATE HELPER METHODS ========================================== */
   /** Fire-and-forget security notification — never breaks the auth flow. */
@@ -98,7 +100,7 @@ export class AuthService {
     const match = /^(\d+)([smhd])$/.exec(ttl.trim());
     const seconds = match
       ? Number(match[1]) *
-      { s: 1, m: 60, h: 3600, d: 86400 }[match[2] as 's' | 'm' | 'h' | 'd']
+        { s: 1, m: 60, h: 3600, d: 86400 }[match[2] as 's' | 'm' | 'h' | 'd']
       : 60 * 60 * 24 * 30;
     return new Date(Date.now() + seconds * 1000);
   }
@@ -179,7 +181,9 @@ export class AuthService {
       await this.db
         .delete(refreshTokens)
         .where(eq(refreshTokens.id, payload.jti));
-    } catch { }
+    } catch {
+      // An invalid/expired token has nothing to revoke — logout still succeeds.
+    }
     return { success: true };
   }
 
@@ -270,6 +274,41 @@ export class AuthService {
       await this.notify(userId, NotificationTemplates.profileUpdated());
     }
     return this.profile(userId);
+  }
+
+  /**
+   * Signed-in password change. Verifies the current password, then revokes
+   * every other session (same posture as reset-password) — the caller keeps
+   * its access token until expiry and should re-login for a new refresh token.
+   */
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDTO,
+  ): Promise<ISuccessResponse> {
+    const [user] = await this.db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException('Incorrect current password');
+    }
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException(
+        'New password must differ from the current one',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.db
+      .update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    await this.db.delete(refreshTokens).where(eq(refreshTokens.userId, userId));
+    await this.notify(userId, NotificationTemplates.passwordChanged());
+    return { success: true };
   }
 
   async deleteAccount(

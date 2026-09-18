@@ -21,6 +21,7 @@ import { UpdateProfileDTO } from './dtos/update-profile.dto';
 import { ForgotPasswordDTO } from './dtos/forgot-password.dto';
 import { ResetPasswordDTO } from './dtos/reset-password.dto';
 import { DeleteAccountDTO } from './dtos/delete-account.dto';
+import { ChangePasswordDTO } from './dtos/change-password.dto';
 import {
   IAuthTokens,
   IForgotPasswordResponse,
@@ -31,7 +32,7 @@ import {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController implements IAuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @UseGuards(ThrottlerGuard)
@@ -101,6 +102,21 @@ export class AuthController implements IAuthController {
     @Body() dto: UpdateProfileDTO,
   ): Promise<IAuthUser> {
     return this.authService.updateProfile(user.id, dto);
+  }
+
+  @Post('me/change-password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Change the signed-in password (revokes other sessions)',
+  })
+  changePassword(
+    @CurrentUser() user: IAuthUser,
+    @Body() dto: ChangePasswordDTO,
+  ): Promise<ISuccessResponse> {
+    return this.authService.changePassword(user.id, dto);
   }
 
   @Delete('me')
