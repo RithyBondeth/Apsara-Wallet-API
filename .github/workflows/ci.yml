@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: apsara
+          POSTGRES_PASSWORD: apsara
+          POSTGRES_DB: apsara_wallet
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U apsara -d apsara_wallet"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://apsara:apsara@localhost:5432/apsara_wallet
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
+      # The hourly cron would otherwise start inside the test process.
+      RECURRING_SCHEDULER_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx eslint "{src,test}/**/*.ts" --max-warnings=0
+      - run: npm run build
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      # Catches a dependency mismatch that compiles but crashes at boot.
+      - name: Boot smoke
+        run: |
+          PORT=3999 node dist/main & echo $! > api.pid
+          for i in $(seq 1 30); do
+            curl -sf localhost:3999/api/v1/health && break
+            sleep 1
+          done
+          curl -sf localhost:3999/api/v1/health
+          kill "$(cat api.pid)"
+      - run: npm run test:e2e
