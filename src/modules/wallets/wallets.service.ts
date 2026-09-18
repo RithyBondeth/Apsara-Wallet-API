@@ -13,7 +13,7 @@ import { CreateWalletDto, UpdateWalletDto } from './dto/wallet.dto';
 
 @Injectable()
 export class WalletsService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) { }
+  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   list(userId: string) {
     return (
