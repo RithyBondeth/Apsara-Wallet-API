@@ -26,7 +26,7 @@ import {
 @UseGuards(JwtAuthGuard)
 @Controller('categories')
 export class CategoriesController {
-  constructor(private readonly categories: CategoriesService) {}
+  constructor(private readonly categories: CategoriesService) { }
 
   @Get()
   list(@CurrentUser() user: IAuthUser, @Query() query: ListCategoriesQuery) {

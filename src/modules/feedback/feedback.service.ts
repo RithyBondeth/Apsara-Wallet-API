@@ -7,7 +7,7 @@ import { CreateFeedbackDto } from './dto/feedback.dto';
 
 @Injectable()
 export class FeedbackService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) { }
+  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   /** Record one rating submission for the given user. */
   async create(userId: string, dto: CreateFeedbackDto) {

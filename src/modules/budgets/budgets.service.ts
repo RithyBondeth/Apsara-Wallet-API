@@ -9,6 +9,11 @@ import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { budgets, categories, transactions } from '../../database/schema';
 import { CreateBudgetDTO } from './dtos/budget.dto';
+import type {
+  IBudgetRow,
+  IMonthBudgets,
+  ISuccessResponse,
+} from '../../common/interfaces/controllers/budgets.interface';
 
 /** Current calendar month as "YYYY-MM" (UTC). */
 function currentMonth(): string {
@@ -33,7 +38,7 @@ export class BudgetsService {
    * The user's per-category budgets for a month, each with `spentKhr` computed
    * live from the ledger (expenses in that category during the month).
    */
-  async list(userId: string, month?: string) {
+  async list(userId: string, month?: string): Promise<IMonthBudgets> {
     const m = month ?? currentMonth();
     const { start, end } = monthRange(m);
 
@@ -73,7 +78,7 @@ export class BudgetsService {
   }
 
   /** Create or update the budget for (user, month, category). */
-  async upsert(userId: string, dto: CreateBudgetDTO) {
+  async upsert(userId: string, dto: CreateBudgetDTO): Promise<IBudgetRow> {
     await this.assertCategoryUsable(userId, dto.categoryId);
     const [row] = await this.db
       .insert(budgets)
@@ -91,7 +96,7 @@ export class BudgetsService {
     return row;
   }
 
-  async remove(userId: string, id: string) {
+  async remove(userId: string, id: string): Promise<ISuccessResponse> {
     const [row] = await this.db
       .select({ id: budgets.id })
       .from(budgets)
