@@ -35,7 +35,7 @@ export class CreateTransactionDto {
 
   @ApiProperty({ description: 'Integer riel (KHR)', example: 25000 })
   @IsInt()
-  @Min(0)
+  @Min(1)
   amountKhr!: number;
 
   @ApiProperty({ enum: TransactionType })

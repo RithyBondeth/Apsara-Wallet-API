@@ -1,13 +1,18 @@
 import {
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, isNull, or, SQL } from 'drizzle-orm';
+import { and, count, eq, isNull, or, SQL } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
-import { categories } from '../../database/schema';
+import {
+  categories,
+  recurringRules,
+  transactions,
+} from '../../database/schema';
 import {
   CreateCategoryDto,
   ListCategoriesQuery,
@@ -55,6 +60,28 @@ export class CategoriesService {
     const existing = await this.findOwned(userId, id);
     if (existing.isSystem) {
       throw new ForbiddenException('System categories cannot be deleted');
+    }
+    // Both FKs are onDelete: 'restrict'. Check first and surface a friendly
+    // 409 the client can explain, instead of a raw 500 from Postgres.
+    const [[{ txCount }], [{ ruleCount }]] = await Promise.all([
+      this.db
+        .select({ txCount: count() })
+        .from(transactions)
+        .where(eq(transactions.categoryId, id)),
+      this.db
+        .select({ ruleCount: count() })
+        .from(recurringRules)
+        .where(eq(recurringRules.categoryId, id)),
+    ]);
+    if (txCount > 0) {
+      throw new ConflictException(
+        'This category still has transactions. Move or delete them first.',
+      );
+    }
+    if (ruleCount > 0) {
+      throw new ConflictException(
+        'This category is used by a recurring rule. Change or delete it first.',
+      );
     }
     await this.db.delete(categories).where(eq(categories.id, id));
     return { success: true };

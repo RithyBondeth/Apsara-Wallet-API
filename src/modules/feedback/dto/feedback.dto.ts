@@ -9,7 +9,12 @@ import {
 } from 'class-validator';
 
 export class CreateFeedbackDto {
-  @ApiProperty({ description: 'Star rating, 1–5', example: 4, minimum: 1, maximum: 5 })
+  @ApiProperty({
+    description: 'Star rating, 1–5',
+    example: 4,
+    minimum: 1,
+    maximum: 5,
+  })
   @IsInt()
   @Min(1)
   @Max(5)

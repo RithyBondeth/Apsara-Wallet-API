@@ -7,7 +7,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ECategoryType } from 'src/common/enums/category.enum';
+import { ECategoryType } from '../../../common/enums/category.enum';
 
 export class CreateCategoryDTO {
   @ApiProperty({ example: 'coffee' })

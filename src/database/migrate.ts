@@ -33,9 +33,7 @@ async function main() {
   // must not be handed back to the pool while migrations run.
   const lockHolder = await pool.connect();
   try {
-    await lockHolder.query('SELECT pg_advisory_lock($1)', [
-      MIGRATION_LOCK_KEY,
-    ]);
+    await lockHolder.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY]);
     await migrate(drizzle(pool), { migrationsFolder: './drizzle' });
     console.log('Migrations applied.');
   } finally {

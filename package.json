@@ -16,7 +16,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "ts-node -P tsconfig.seed.json src/database/seed.ts",
+    "db:seed": "ts-node -P tsconfig.seed.json src/database/seeding/seed.ts",
     "db:migrate:prod": "node dist/database/migrate.js",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
@@ -28,7 +28,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/common": "^11.2.5",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
@@ -95,5 +95,8 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "multer": "^2.4.0"
   }
 }
