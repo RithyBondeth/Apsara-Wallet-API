@@ -38,7 +38,7 @@ export class TransfersService {
     }
     // Both wallets must belong to the user.
     const owned = await this.db
-      .select({ id: wallets.id })
+      .select({ id: wallets.id, balanceKhr: wallets.balanceKhr })
       .from(wallets)
       .where(
         and(
@@ -48,6 +48,11 @@ export class TransfersService {
       );
     if (owned.length !== 2) {
       throw new BadRequestException('Both wallets must be your own');
+    }
+    // A transfer moves money that exists; never let it drive a wallet negative.
+    const from = owned.find((w) => w.id === dto.fromWalletId)!;
+    if (from.balanceKhr < dto.amountKhr) {
+      throw new BadRequestException('Insufficient balance in source wallet');
     }
 
     return this.db.transaction(async (tx) => {

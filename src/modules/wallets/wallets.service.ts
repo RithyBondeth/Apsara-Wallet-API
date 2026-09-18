@@ -8,12 +8,12 @@ import {
 import { and, asc, count, eq, inArray, max, ne } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB, DrizzleTx } from '../../database/database.module';
-import { transactions, wallets } from '../../database/schema';
+import { recurringRules, transactions, wallets } from '../../database/schema';
 import { CreateWalletDto, UpdateWalletDto } from './dto/wallet.dto';
 
 @Injectable()
 export class WalletsService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
+  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) { }
 
   list(userId: string) {
     return (
@@ -109,6 +109,16 @@ export class WalletsService {
     if (txCount > 0) {
       throw new ConflictException(
         'This wallet still has transactions. Move or delete them first.',
+      );
+    }
+    // recurring_rules.wallet_id is also onDelete: 'restrict'.
+    const [{ value: ruleCount }] = await this.db
+      .select({ value: count() })
+      .from(recurringRules)
+      .where(eq(recurringRules.walletId, id));
+    if (ruleCount > 0) {
+      throw new ConflictException(
+        'This wallet is used by a recurring rule. Change or delete it first.',
       );
     }
     await this.db.delete(wallets).where(eq(wallets.id, id));
