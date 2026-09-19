@@ -27,7 +27,7 @@ COPY --from=build /app/drizzle ./drizzle
 # Run as the unprivileged user that ships with the node image.
 USER node
 
-EXPOSE 3000
+EXPOSE 3010
 
 # Apply pending migrations, then boot. migrate.js serialises itself behind a
 # Postgres advisory lock, so concurrent instances starting together is safe.
