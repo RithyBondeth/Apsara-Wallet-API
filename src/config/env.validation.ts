@@ -25,7 +25,7 @@ class EnvVars {
   @IsInt()
   @Min(0)
   @Max(65535)
-  PORT: number = 3000;
+  PORT: number = 3010;
 
   @IsString()
   @IsNotEmpty()

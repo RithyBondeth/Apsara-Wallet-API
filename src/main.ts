@@ -60,7 +60,7 @@ async function bootstrap() {
   // Let in-flight requests finish when the platform sends SIGTERM on redeploy.
   app.enableShutdownHooks();
 
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 3010;
   await app.listen(port, '0.0.0.0');
   console.log(
     `Apsara Wallet API listening on :${port}` +
