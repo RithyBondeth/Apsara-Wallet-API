@@ -45,6 +45,22 @@ deploy with a bad schema fails the health check instead of serving traffic.
    (`RESEND_API_KEY`, `FIREBASE_SERVICE_ACCOUNT`, `CORS_ORIGINS`,
    `SWAGGER_ENABLED`) are documented in `.env.example`.
 
+   **Password reset needs email in production.** Without `RESEND_API_KEY`
+   the API only returns the reset token in the dev response, and the
+   mobile app's "Forgot password" shows the generic "check your email"
+   message with nothing behind it. Set:
+
+   ```
+   RESEND_API_KEY=re_…
+   RESEND_FROM=Apsara Wallet <noreply@yourdomain.com>   # a verified sender
+   ```
+
+   Leave `PASSWORD_RESET_URL` unset: the default
+   `apsarawallet://reset-password?token=` is the scheme the mobile app
+   registers and opens straight onto its reset screen. Only override it if
+   you move to `https://apsarawallet.app/reset-password?token=` once
+   App Links / Universal Links are set up (the app accepts both).
+
 4. **Generate the public domain**
 
    API service → *Settings* → *Networking* → *Generate Domain*. You get
