@@ -55,11 +55,18 @@ deploy with a bad schema fails the health check instead of serving traffic.
    RESEND_FROM=Apsara Wallet <noreply@yourdomain.com>   # a verified sender
    ```
 
-   Leave `PASSWORD_RESET_URL` unset: the default
-   `apsarawallet://reset-password?token=` is the scheme the mobile app
-   registers and opens straight onto its reset screen. Only override it if
-   you move to `https://apsarawallet.app/reset-password?token=` once
-   App Links / Universal Links are set up (the app accepts both).
+   Leave `PASSWORD_RESET_URL` unset until the website's Universal Links /
+   App Links verify (it needs your Apple Team ID and Android signing
+   fingerprint — see the web repo's `.env.example`). The default
+   `apsarawallet://reset-password?token=` opens the app directly on any
+   install. Once verification is live, switch to
+
+   ```
+   PASSWORD_RESET_URL=https://apsarawallet.com/reset-password?token=
+   ```
+
+   which mail clients trust more and which falls back to the website's
+   reset page when the app is not installed. The app accepts both forms.
 
 4. **Generate the public domain**
 
