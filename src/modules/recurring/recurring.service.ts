@@ -33,7 +33,7 @@ const MAX_CATCHUP = 120;
 const RUN_LOCK_KEY = 84822917;
 
 /** The occurrence after [due] for a given frequency (UTC). */
-function nextOccurrence(due: Date, frequency: string): Date {
+export function nextOccurrence(due: Date, frequency: string): Date {
   if (frequency === 'weekly') {
     return new Date(due.getTime() + 7 * 24 * 60 * 60 * 1000);
   }

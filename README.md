@@ -92,17 +92,26 @@ instead of serving traffic.
 
 ```bash
 npm run lint          # eslint --fix
-npm test              # unit tests
+npm test              # unit specs, no database needed
 npm run test:e2e      # real HTTP suite against a live Postgres
 ```
+
+Unit specs sit next to the code (`src/modules/**/*.spec.ts`) and run in
+about a second. They drive the services against `test/support/fake-db.ts`,
+a recording stand-in for the Drizzle handle: tests queue what each query
+returns and then assert on the real bound SQL parameters — which wallet an
+update targeted, by what signed amount, whether it ran inside a transaction.
+This is where the ledger invariants live (balance moves on create / update /
+delete / transfer, budget-alert crossing, recurring catch-up and its cap).
 
 The e2e suite (`test/*.e2e-spec.ts`) boots the app and exercises auth, the
 ledger invariants (transfers, deletes, negative amounts) and throttling over
 HTTP. It needs `DATABASE_URL` pointing at a migrated, seeded database — the
 local `docker:up` + `db:migrate` + `db:seed` sequence above is enough.
 
-CI (`.github/workflows/ci.yml`) runs lint with zero warnings, builds, migrates
-and seeds a fresh Postgres, boot-smokes `dist/main`, then runs the e2e suite.
+CI (`.github/workflows/ci.yml`) runs lint with zero warnings and the unit
+specs first, then builds, migrates and seeds a fresh Postgres, boot-smokes
+`dist/main`, and runs the e2e suite.
 
 ## Deployment
 
