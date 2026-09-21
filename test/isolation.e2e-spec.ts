@@ -229,13 +229,13 @@ describe('tenant isolation (e2e)', () => {
   });
 
   it('every list B fetches is empty of A’s rows', async () => {
-    const [wallets, txs, goals, rules, notifs] = await Promise.all([
-      B().get('/wallets').expect(200),
-      B().get('/transactions').expect(200),
-      B().get('/savings-goals').expect(200),
-      B().get('/recurring').expect(200),
-      B().get('/notifications').expect(200),
-    ]);
+    // Sequential on purpose: parallel supertest calls against the in-process
+    // server intermittently die with ECONNRESET on keep-alive reuse.
+    const wallets = await B().get('/wallets').expect(200);
+    const txs = await B().get('/transactions').expect(200);
+    const goals = await B().get('/savings-goals').expect(200);
+    const rules = await B().get('/recurring').expect(200);
+    const notifs = await B().get('/notifications').expect(200);
     const blob = JSON.stringify([
       wallets.body,
       txs.body,
