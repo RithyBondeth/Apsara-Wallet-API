@@ -36,6 +36,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx eslint "{src,test}/**/*.ts" --max-warnings=0
+      # DB-free service specs first: they fail in a second, before we pay
+      # for a Postgres migrate + seed + boot.
+      - run: npm test
       - run: npm run build
       - run: npm run db:migrate
       - run: npm run db:seed
