@@ -104,9 +104,14 @@ update targeted, by what signed amount, whether it ran inside a transaction.
 This is where the ledger invariants live (balance moves on create / update /
 delete / transfer, budget-alert crossing, recurring catch-up and its cap).
 
-The e2e suite (`test/*.e2e-spec.ts`) boots the app and exercises auth, the
-ledger invariants (transfers, deletes, negative amounts) and throttling over
-HTTP. It needs `DATABASE_URL` pointing at a migrated, seeded database — the
+The e2e suite (`test/*.e2e-spec.ts`) boots the app and exercises, over real
+HTTP: auth; the ledger invariants (transfers, deletes, budgets, recurring,
+goals, notifications); throttling; **tenant isolation** (everything user A
+owns is 404 / rejected for user B — the guard is per controller, so a new
+endpoint that forgets the user scope fails here); the **auth guard sweep**
+(every protected route 401s without a token — add new routes to the list in
+`auth-guard.e2e-spec.ts`); and **request validation** (the DTO rules and the
+whitelist/forbid-unknown pipe). It needs `DATABASE_URL` pointing at a migrated, seeded database — the
 local `docker:up` + `db:migrate` + `db:seed` sequence above is enough.
 
 CI (`.github/workflows/ci.yml`) runs lint with zero warnings and the unit
