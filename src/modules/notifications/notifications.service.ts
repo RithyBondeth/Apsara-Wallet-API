@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.module';
 import type { DrizzleDB } from '../../database/database.module';
 import { notifications } from '../../database/schema';
@@ -59,25 +59,29 @@ export class NotificationsService {
    * devices. Returns whether a new one was created.
    */
   async emitInsight(userId: string, dto: EmitInsightDto) {
-    const [existing] = await this.db
-      .select({ id: notifications.id })
-      .from(notifications)
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          eq(notifications.type, 'insight'),
-          sql`${notifications.data} ->> 'periodKey' = ${dto.periodKey}`,
-        ),
-      );
-    if (existing) return { created: false };
-    await this.emit(
-      userId,
-      NotificationTemplates.insightMonthly(
-        dto.periodKey,
-        dto.spentKhr,
-        dto.count,
-      ),
+    // The partial unique index on (userId, data->>'periodKey') for insights
+    // makes this atomic: a concurrent duplicate hits the conflict and inserts
+    // nothing, instead of racing a separate existence check.
+    const n = NotificationTemplates.insightMonthly(
+      dto.periodKey,
+      dto.spentKhr,
+      dto.count,
     );
+    const [row] = await this.db
+      .insert(notifications)
+      .values({
+        userId,
+        type: n.type,
+        data: n.data,
+        title: n.title,
+        body: n.body,
+        icon: n.icon,
+        color: n.color,
+      })
+      .onConflictDoNothing()
+      .returning({ id: notifications.id });
+    if (!row) return { created: false };
+    void this.push.sendToUser(userId, n, row.id);
     return { created: true };
   }
 

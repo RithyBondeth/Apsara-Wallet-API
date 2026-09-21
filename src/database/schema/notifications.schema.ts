@@ -6,7 +6,9 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './users.schema';
 
 export const notifications = pgTable(
@@ -28,7 +30,15 @@ export const notifications = pgTable(
     read: boolean().notNull().default(false),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('notifications_user_created_idx').on(t.userId, t.createdAt)],
+  (t) => [
+    index('notifications_user_created_idx').on(t.userId, t.createdAt),
+    // One monthly insight per user per period. The service's check-then-insert
+    // is not atomic on its own: two concurrent posts (the app re-posts on every
+    // ledger change) both saw "no row yet" and both inserted.
+    uniqueIndex('notifications_insight_period_uidx')
+      .on(t.userId, sql`(${t.data} ->> 'periodKey')`)
+      .where(sql`${t.type} = 'insight'`),
+  ],
 );
 
 export type Notification = typeof notifications.$inferSelect;
