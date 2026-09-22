@@ -293,7 +293,10 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
-      throw new UnauthorizedException('Incorrect current password');
+      // 400, not 401: the bearer is valid — the user typed the wrong
+      // password. A 401 here makes clients treat it as an expired session
+      // (the mobile app refreshed, retried, and signed the user out).
+      throw new BadRequestException('Incorrect current password');
     }
     if (dto.currentPassword === dto.newPassword) {
       throw new BadRequestException(
@@ -323,7 +326,8 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     if (!(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException('Incorrect password');
+      // Same as change-password: a wrong confirmation is a 400, never a 401.
+      throw new BadRequestException('Incorrect password');
     }
 
     await this.db.transaction(async (tx) => {
