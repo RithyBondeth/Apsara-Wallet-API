@@ -86,7 +86,9 @@ describe('auth (e2e)', () => {
         currentPassword: 'wrong',
         newPassword: 'N3wStrongPass!',
       })
-      .expect(401);
+      // 400, not 401: a wrong password with a valid bearer is a bad request.
+      // A 401 makes clients treat it as an expired session.
+      .expect(400);
     await api(app, t)
       .post('/auth/me/change-password', {
         currentPassword: u.password,
@@ -112,7 +114,7 @@ describe('auth (e2e)', () => {
     const u = await registerUser(app);
     await api(app, u.accessToken)
       .delete('/auth/me', { password: 'wrong' })
-      .expect(401);
+      .expect(400);
     await deleteUser(app, u.accessToken, u.password);
     await api(app, u.accessToken).get('/auth/me').expect(401);
     await api(app)
