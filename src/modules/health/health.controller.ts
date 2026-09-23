@@ -14,7 +14,7 @@ export class HealthController {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   /**
-   * Liveness + readiness probe for the platform (see railway.json). Touches
+   * Liveness + readiness probe for the platform (see .railway/railway.ts). Touches
    * the database so a deploy with a broken connection string fails the health
    * check instead of going live and 500-ing every request.
    */

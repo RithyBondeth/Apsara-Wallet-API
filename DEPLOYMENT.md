@@ -1,8 +1,22 @@
 # Deploying the Apsara Wallet API to Railway
 
 The service ships as a Docker image (`Dockerfile`) and Railway is configured
-through `railway.json`. Migrations run automatically before each boot, so a
-deploy with a bad schema fails the health check instead of serving traffic.
+through `.railway/railway.ts` (Railway Infrastructure as Code). Migrations run
+automatically before each boot, so a deploy with a bad schema fails the health
+check instead of serving traffic.
+
+## Changing the Railway configuration
+
+Railway does not read `.railway/railway.ts` during deploys. Edit it, then
+preview and apply with the Railway CLI (`railway link` first if needed):
+
+```bash
+railway config plan
+railway config apply
+```
+
+Secrets are declared as `preserve()`, so their values stay in Railway and never
+land in git. Only `plan` is read-only; review it before every `apply`.
 
 ## One-time setup
 
