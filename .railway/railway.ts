@@ -18,6 +18,10 @@ export default defineRailway(() => {
       builder: "DOCKERFILE",
       dockerfilePath: "Dockerfile",
     },
+    // The app listens on Railway's injected PORT (8080), not the Dockerfile's
+    // EXPOSE 3010, so the domain must target 8080. Railway config can't create
+    // a custom domain: add a new one in the dashboard first, then declare it.
+    domains: [{ domain: "api-wallet.apsara.social", port: 8080 }],
     healthcheck: "/api/v1/health",
     healthcheckTimeout: 60,
     deploy: {
@@ -34,6 +38,9 @@ export default defineRailway(() => {
       // Secrets live only in Railway; preserve() keeps the current value.
       JWT_ACCESS_SECRET: preserve(),
       JWT_REFRESH_SECRET: preserve(),
+      // Password-reset email. The sender's domain must be verified in Resend.
+      RESEND_FROM: "Apsara Wallet <noreply@wallet.apsara.social>",
+      RESEND_API_KEY: preserve(),
     },
   });
   return project("Apsara Wallet", {
