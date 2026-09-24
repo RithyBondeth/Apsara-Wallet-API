@@ -76,7 +76,7 @@ land in git. Only `plan` is read-only; review it before every `apply`.
    install. Once verification is live, switch to
 
    ```
-   PASSWORD_RESET_URL=https://apsarawallet.com/reset-password?token=
+   PASSWORD_RESET_URL=https://wallet.apsara.social/reset-password?token=
    ```
 
    which mail clients trust more and which falls back to the website's
