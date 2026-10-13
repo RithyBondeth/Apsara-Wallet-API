@@ -1,130 +1,126 @@
-# Apsara Wallet API
+<div align="center">
 
-Backend for [Apsara Wallet](../Apsara-Wallet-Mobile), a personal finance app
-for Cambodia. NestJS + Postgres (Drizzle ORM), served under `/api/v1`.
+# Apsara Wallet — API
 
-The API owns the ledger: wallets in KHR/USD, transactions and transfers,
-categories, budgets, savings goals, recurring rules, an in-app notification
-inbox, FX rates, and JWT auth with email password reset.
+**The backend for Apsara Wallet, a personal finance app built for Cambodia with dual-currency (KHR/USD) support.**
 
-## Requirements
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=white)
 
-- Node 20+
-- Docker (for the local Postgres) — or any Postgres 16 you can point
-  `DATABASE_URL` at
+</div>
 
-## Run it locally
+---
+
+## Overview
+
+Apsara Wallet API is the NestJS backend for [Apsara Wallet](https://github.com/RithyBondeth/Apsara-Wallet-Mobile). It owns the ledger: wallets in KHR and USD, transactions and transfers, categories, budgets, savings goals, recurring rules, an in-app notification inbox, exchange rates, and JWT authentication with email password reset. All routes are served under `/api/v1`.
+
+## Features
+
+- **Multi-currency wallets** (KHR and USD) that can be reordered.
+- **Ledger:** transactions and balance-safe wallet-to-wallet transfers.
+- **Categories, budgets with alert thresholds, and savings goals** with an add-funds flow.
+- **Recurring transactions** materialized by an hourly scheduler, with catch-up and a cap.
+- **Notifications:** an in-app inbox with read state, device tokens, and Firebase Cloud Messaging push.
+- **KHR/USD exchange rates.**
+- **Authentication:** register, login, refresh, logout, profile, change password, password reset (Resend email), and account deletion.
+- **Feedback** collection and health checks.
+- **Hardening:** request validation, rate limiting, and per-user tenant isolation, all enforced by e2e tests.
+- **Swagger docs** in development.
+
+## Tech Stack
+
+| Area | Technology |
+| --- | --- |
+| Framework | NestJS |
+| Language | TypeScript |
+| Database | PostgreSQL 16, Drizzle ORM |
+| Authentication | JWT (access and refresh tokens) |
+| Notifications | Firebase Cloud Messaging |
+| Email | Resend |
+| Testing | Jest (unit and e2e) |
+| Deployment | Docker, Railway, GitHub Actions CI |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20 or newer
+- Docker, or any PostgreSQL 16 instance
+
+### Installation
 
 ```bash
-cp .env.example .env      # defaults work as-is for local dev
+git clone https://github.com/RithyBondeth/Apsara-Wallet-API.git
+cd Apsara-Wallet-API
+cp .env.example .env      # the defaults work for local development
 npm install
-npm run docker:up         # Postgres 16 on localhost:5432
-npm run db:migrate        # apply drizzle/ migrations
-npm run db:seed           # optional: demo user + sample ledger
+npm run docker:up         # PostgreSQL 16 on localhost:5432
+npm run db:migrate
+npm run db:seed           # optional demo user and sample ledger
 npm run start:dev         # http://localhost:3010/api/v1
 ```
 
-The dev port is **3010**, not 3000 — the sibling Apsara Talent services own
-3000/3001/3005 on a dev machine. The mobile app's `.env.dev` already points at
-3010.
+- Health check: `GET /api/v1/health`
+- Swagger: `/docs` in development (set `SWAGGER_ENABLED=true` to enable it in production)
 
-Health check: `GET /api/v1/health`. Swagger is at `/docs` in development
-(set `SWAGGER_ENABLED=true` to expose it in production).
-
-## Configuration
-
-Everything is read from `.env`; `.env.example` documents every variable.
-The ones you will actually touch:
+### Environment Variables
 
 | Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | Postgres connection string |
-| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Token signing keys — generate fresh ones for anything non-local |
-| `RECURRING_SCHEDULER_ENABLED` | Hourly cron that materialises recurring transactions (default on) |
-| `RESEND_API_KEY` / `RESEND_FROM` / `PASSWORD_RESET_URL` | Password-reset email. Unset → dev returns the reset token in the response instead |
-| `FIREBASE_SERVICE_ACCOUNT` | FCM push delivery. Unset → push is skipped, the in-app inbox still works |
-| `CORS_ORIGINS` | Browser origins allowed through CORS. Native clients never need this |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | Token-signing keys |
+| `RECURRING_SCHEDULER_ENABLED` | Hourly recurring-transaction job (on by default) |
+| `RESEND_API_KEY`, `RESEND_FROM`, `PASSWORD_RESET_URL` | Password-reset email |
+| `FIREBASE_SERVICE_ACCOUNT` | Push notification delivery |
+| `CORS_ORIGINS` | Allowed browser origins |
 
-## Project layout
+### Scripts
 
+| Command | Description |
+| --- | --- |
+| `npm run start:dev` | Start in watch mode |
+| `npm run db:generate` | Generate a migration from schema changes |
+| `npm run db:migrate` | Apply pending migrations |
+| `npm run db:studio` | Open Drizzle Studio |
+| `npm test` | Unit tests (no database needed) |
+| `npm run test:e2e` | End-to-end HTTP tests against a live database |
+
+## Project Structure
+
+```text
+Apsara-Wallet-API/
+├── src/
+│   ├── common/          # Decorators, enums, shared interfaces
+│   ├── config/          # Environment validation
+│   ├── database/        # Drizzle schema, migration runner, seeding
+│   └── modules/
+│       ├── auth/  wallets/  transactions/  transfers/  categories/
+│       ├── budgets/  savings-goals/  recurring/  notifications/
+│       └── fx/  feedback/  email/  health/
+├── drizzle/             # SQL migrations
+├── test/                # End-to-end suites
+├── Dockerfile
+└── docker-compose.yml
 ```
-src/
-├── main.ts              # bootstrap, global prefix, Swagger, validation pipe
-├── app.module.ts
-├── common/              # decorators, enums, shared interfaces
-├── config/              # env validation
-├── database/            # Drizzle schema, migrations runner, seeding/
-└── modules/
-    ├── auth/            # register, login, refresh, logout, /me, change/reset password
-    ├── wallets/         # wallets + reorder
-    ├── transactions/    # ledger entries
-    ├── transfers/       # wallet-to-wallet moves (balance-safe)
-    ├── categories/
-    ├── budgets/
-    ├── savings-goals/   # goals + add-funds
-    ├── recurring/       # rules + the materialisation cron
-    ├── notifications/   # inbox, read state, device tokens, FCM push
-    ├── fx/              # KHR/USD rates
-    ├── feedback/
-    ├── email/           # Resend transport
-    └── health/
-```
-
-Each module follows the same shape: `*.controller.ts` (thin, typed against an
-`I*Controller` interface), `*.service.ts` (all business rules), `dtos/`.
-
-## Database
-
-Schema lives in `src/database/schema`; migrations in `drizzle/`.
-
-```bash
-npm run db:generate   # write a new migration from schema changes
-npm run db:migrate    # apply pending migrations
-npm run db:push       # dev only: sync schema without a migration
-npm run db:studio     # Drizzle Studio
-```
-
-Migrations also run automatically before every production boot
-(`npm run db:migrate:prod`), so a bad migration fails the health check
-instead of serving traffic.
-
-## Tests
-
-```bash
-npm run lint          # eslint --fix
-npm test              # unit specs, no database needed
-npm run test:e2e      # real HTTP suite against a live Postgres
-```
-
-Unit specs sit next to the code (`src/modules/**/*.spec.ts`) and run in
-about a second. They drive the services against `test/support/fake-db.ts`,
-a recording stand-in for the Drizzle handle: tests queue what each query
-returns and then assert on the real bound SQL parameters — which wallet an
-update targeted, by what signed amount, whether it ran inside a transaction.
-This is where the ledger invariants live (balance moves on create / update /
-delete / transfer, budget-alert crossing, recurring catch-up and its cap).
-
-The e2e suite (`test/*.e2e-spec.ts`) boots the app and exercises, over real
-HTTP: auth; the ledger invariants (transfers, deletes, budgets, recurring,
-goals, notifications); throttling; **tenant isolation** (everything user A
-owns is 404 / rejected for user B — the guard is per controller, so a new
-endpoint that forgets the user scope fails here); the **auth guard sweep**
-(every protected route 401s without a token — add new routes to the list in
-`auth-guard.e2e-spec.ts`); and **request validation** (the DTO rules and the
-whitelist/forbid-unknown pipe). It needs `DATABASE_URL` pointing at a migrated, seeded database — the
-local `docker:up` + `db:migrate` + `db:seed` sequence above is enough.
-
-CI (`.github/workflows/ci.yml`) runs lint with zero warnings and the unit
-specs first, then builds, migrates and seeds a fresh Postgres, boot-smokes
-`dist/main`, and runs the e2e suite.
 
 ## Deployment
 
-Ships as a Docker image to Railway; see [DEPLOYMENT.md](DEPLOYMENT.md) for
-the one-time project setup, required variables and secret generation.
+The API ships as a Docker image to Railway, and migrations run before every production boot. See [DEPLOYMENT.md](DEPLOYMENT.md) for setup and the required variables.
 
-## Related
+## Related Repositories
 
-- [Apsara-Wallet-Mobile](../Apsara-Wallet-Mobile) — the Flutter app
-- [Apsara-Wallet-Web](../Apsara-Wallet-Web) — marketing site and the store
-  compliance pages (`/privacy`, `/terms`, `/delete-account`, `/support`)
+- [Apsara-Wallet-Mobile](https://github.com/RithyBondeth/Apsara-Wallet-Mobile): the Flutter mobile app
+- [Apsara-Wallet-Web](https://github.com/RithyBondeth/Apsara-Wallet-Web): the marketing site and app-store compliance pages
+
+## Author
+
+**Rithy Bondeth** — Full Stack Developer & AI Engineer
+
+[![Portfolio](https://img.shields.io/badge/Portfolio-0A0A0A?style=for-the-badge&logo=vercel&logoColor=white)](https://bondeth.dev)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/RithyBondeth)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/rithy-bondeth-484073282/)
